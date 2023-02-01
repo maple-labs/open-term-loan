@@ -11,17 +11,10 @@ interface IMapleLoanEvents {
     event BorrowerAccepted(address indexed borrower_);
 
     /**
-     *  @dev   Collateral was posted.
-     *  @param amount_ The amount of collateral posted.
+     *  @dev   The next payment due date was restored to it's original value, reverting the action of the loan being called.
+     *  @param nextPaymentDueDate_ The new next payment due date.
      */
-    event CollateralPosted(uint256 amount_);
-
-    /**
-     *  @dev   Collateral was removed.
-     *  @param amount_      The amount of collateral removed.
-     *  @param destination_ The recipient of the collateral removed.
-     */
-    event CollateralRemoved(uint256 amount_, address indexed destination_);
+    event CallRemoved(uint40 nextPaymentDueDate_);
 
     /**
      *  @dev   The loan was funded.
@@ -29,14 +22,7 @@ interface IMapleLoanEvents {
      *  @param amount_             The amount funded.
      *  @param nextPaymentDueDate_ The due date of the next payment.
      */
-    event Funded(address indexed lender_, uint256 amount_, uint256 nextPaymentDueDate_);
-
-    /**
-     *  @dev   Funds were claimed.
-     *  @param amount_      The amount of funds claimed.
-     *  @param destination_ The recipient of the funds claimed.
-     */
-    event FundsClaimed(uint256 amount_, address indexed destination_);
+    event Funded(address indexed lender_, uint256 amount_, uint40 nextPaymentDueDate_);
 
     /**
      *  @dev   Funds were drawn.
@@ -46,45 +32,27 @@ interface IMapleLoanEvents {
     event FundsDrawnDown(uint256 amount_, address indexed destination_);
 
     /**
-     *  @dev   Funds were returned.
-     *  @param amount_ The amount of funds returned.
-     */
-    event FundsReturned(uint256 amount_);
-
-    /**
      *  @dev   Loan was initialized.
-     *  @param borrower_    The address of the borrower.
-     *  @param lender_      The address of the lender.
-     *  @param feeManager_  The address of the entity responsible for calculating fees.
-     *  @param assets_      Array of asset addresses.
-     *                       [0]: collateralAsset,
-     *                       [1]: fundsAsset.
-     *  @param termDetails_ Array of loan parameters:
-     *                       [0]: gracePeriod,
-     *                       [1]: paymentInterval,
-     *                       [2]: payments,
-     *  @param amounts_     Requested amounts:
-     *                       [0]: collateralRequired,
-     *                       [1]: principalRequested,
-     *                       [2]: endingPrincipal.
-     *  @param rates_       Fee parameters:
-     *                       [0]: interestRate,
-     *                       [1]: closingFeeRate,
-     *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium
-     *  @param fees_        Array of fees:
-     *                       [0]: delegateOriginationFee,
-     *                       [1]: delegateServiceFee
+     *  @param borrower_           The address of the borrower.
+     *  @param lender_             The address of the lender.
+     *  @param fundsAsset_         The address of the lent asset.
+     *  @param principalRequested_ The amount of principal requested.
+     *  @param termDetails_        Array of loan parameters:
+     *                                 [0]: gracePeriod,
+     *                                 [1]: noticePeriod,
+     *                                 [2]: paymentInterval,
+     *  @param rates_              Fee parameters:
+     *                                 [0]: interestRate,
+     *                                 [1]: lateFeeRate,
+     *                                 [2]: lateInterestPremium
      */
     event Initialized(
         address indexed borrower_,
         address indexed lender_,
-        address indexed feeManager_,
-        address[2] assets_,
-        uint256[3] termDetails_,
-        uint256[3] amounts_,
-        uint256[4] rates_,
-        uint256[2] fees_
+        address indexed fundsAsset_,
+        uint256 principalRequested_,
+        uint32[3] termDetails_,
+        uint256[3] rates_
     );
 
     /**
@@ -94,60 +62,40 @@ interface IMapleLoanEvents {
     event LenderAccepted(address indexed lender_);
 
     /**
+     *  @dev   The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
+     *  @param principalToReturn_  The minimum amount of principal the borrower must return.
+     *  @param nextPaymentDueDate_ The new next payment due date.
+     */
+    event Called(uint256 principalToReturn_, uint40 nextPaymentDueDate_);
+
+    /**
      *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.
      *         This is emitted when the pool delegate wants to force a payment (or default).
      *  @param nextPaymentDueDate_ The new next payment due date.
      */
-    event LoanImpaired(uint256 nextPaymentDueDate_);
+    event Impaired(uint40 nextPaymentDueDate_);
 
     /**
-     *  @dev   Loan was repaid early and closed.
-     *  @param principalPaid_ The portion of the total amount that went towards principal.
-     *  @param interestPaid_  The portion of the total amount that went towards interest.
-     *  @param feesPaid_      The portion of the total amount that went towards fees.
+     *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
+     *  @param principalReturned_  The amount of principal returned.
+     *  @param principalRemaining_ The amount of principal remaining on the loan.
      */
-    event LoanClosed(uint256 principalPaid_, uint256 interestPaid_, uint256 feesPaid_);
-
-    /**
-     *  @dev   The terms of the refinance proposal were accepted.
-     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
-     *  @param refinancer_          The address that will execute the refinance.
-     *  @param deadline_            The deadline for accepting the new terms.
-     *  @param calls_               The individual calls for the refinancer contract.
-     */
-    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-
-    /**
-     *  @dev   A refinance was proposed.
-     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
-     *  @param refinancer_          The address that will execute the refinance.
-     *  @param deadline_            The deadline for accepting the new terms.
-     *  @param calls_               The individual calls for the refinancer contract.
-     */
-    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-
-    /**
-     *  @dev   The terms of the refinance proposal were rejected.
-     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
-     *  @param refinancer_          The address that will execute the refinance.
-     *  @param deadline_            The deadline for accepting the new terms.
-     *  @param calls_               The individual calls for the refinancer contract.
-     */
-    event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+    event PrincipalReturned(uint256 principalReturned_, uint256 principalRemaining_);
 
     /**
      *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
      *  @param nextPaymentDueDate_ The new next payment due date.
      */
-    event NextPaymentDueDateRestored(uint256 nextPaymentDueDate_);
+    event ImpairmentRemoved(uint40 nextPaymentDueDate_);
 
     /**
      *  @dev   Payments were made.
-     *  @param principalPaid_ The portion of the total amount that went towards principal.
-     *  @param interestPaid_  The portion of the total amount that went towards interest.
-     *  @param fees_          The portion of the total amount that went towards fees.
+     *  @param lender_           The address of the lender the payment was made to.
+     *  @param principalPaid_    The portion of the total amount that went towards paying down principal.
+     *  @param interestPaid_     The portion of the total amount that went towards interest.
+     *  @param lateInterestPaid_ The portion of the total amount that went towards late interest.
      */
-    event PaymentMade(uint256 principalPaid_, uint256 interestPaid_, uint256 fees_);
+    event PaymentMade(address indexed lender_, uint256 principalPaid_, uint256 interestPaid_, uint256 lateInterestPaid_);
 
     /**
      *  @dev   Pending borrower was set.
@@ -157,17 +105,16 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Pending lender was set.
-     *  @param pendingLender_ Address that can accept the lender role.
+     *  @param pendingLender_ The address that can accept the lender role.
      */
     event PendingLenderSet(address pendingLender_);
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.
-     *  @param collateralRepossessed_ The amount of collateral asset repossessed.
-     *  @param fundsRepossessed_      The amount of funds asset repossessed.
-     *  @param destination_           The recipient of the collateral and funds, if any.
+     *  @param fundsRepossessed_ The amount of funds asset repossessed.
+     *  @param destination_      The address of the recipient of the funds, if any.
      */
-    event Repossessed(uint256 collateralRepossessed_, uint256 fundsRepossessed_, address indexed destination_);
+    event Repossessed(uint256 fundsRepossessed_, address indexed destination_);
 
     /**
      *  @dev   Some token (neither fundsAsset nor collateralAsset) was removed from the loan.

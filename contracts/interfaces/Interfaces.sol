@@ -59,14 +59,6 @@ interface ILoanManagerLike {
 
 }
 
-interface IMapleFeeManagerLike {
-
-    function updateDelegateFeeTerms(uint256 delegateOriginationFee_, uint256 delegateServiceFee_) external;
-
-    function updatePlatformServiceFee(uint256 principalRequested_, uint256 paymentInterval_) external;
-
-}
-
 interface IMapleProxyFactoryLike {
 
     function isInstance(address instance_) external view returns (bool isInstance_);

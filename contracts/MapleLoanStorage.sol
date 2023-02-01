@@ -1,55 +1,43 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
+import { IMapleLoanStorage } from "./interfaces/IMapleLoanStorage.sol";
+
 /// @title MapleLoanStorage defines the storage layout of MapleLoan.
-abstract contract MapleLoanStorage {
+abstract contract MapleLoanStorage is IMapleLoanStorage {
 
-    // Roles
-    address internal _borrower;         // The address of the borrower.
-    address internal _lender;           // The address of the lender.
-    address internal _pendingBorrower;  // The address of the pendingBorrower, the only address that can accept the borrower role.
-    address internal _pendingLender;    // The address of the pendingLender, the only address that can accept the lender role.
+    // TODO: Reorder variables and potentially pack slots.
+    // TODO: Confirm uint32s and uint40s.
 
-    // Assets
-    address internal _collateralAsset;  // The address of the asset used as collateral.
-    address internal _fundsAsset;       // The address of the asset used as funds.
+    // --- SLOT 0 --- //
 
-    // Loan Term Parameters
-    uint256 internal _gracePeriod;      // The number of seconds a payment can be late.
-    uint256 internal _paymentInterval;  // The number of seconds between payments.
+    address public override fundsAsset;  // The address of the asset used as funds.
+
+    uint32 public override gracePeriod;      // The number of seconds a payment can be late.
+    uint32 public override noticePeriod;     // The number of seconds after a loan is called after which the borrower can be considered in default.
+    uint32 public override paymentInterval;  // The number of seconds between payments.
+
+    // --- SLOT 1 --- //
+
+    address public override borrower;  // The address of the borrower.
+
+    uint40 public override nextPaymentDueDate;          // The timestamp of due date of next payment.
+    uint40 public override originalNextPaymentDueDate;  // The previous timestamp of due date of next payment. Used as a cache to allow reversion of loan impairment.
+
+    uint16 private __unused;
+
+    // --- SLOTS 2 - 8 --- //
+
+    address public override lender;  // The address of the lender.
+    address public override pendingBorrower;  // The address of the pendingBorrower, the only address that can accept the borrower role.
+    address public override pendingLender;    // The address of the pendingLender, the only address that can accept the lender role.
+
+    uint256 public override calledPrincipal;  // The amount of principal yet to be returned to satisfy the loan call.
+    uint256 public override principal;        // The amount of principal yet to be paid down.
 
     // Rates
-    uint256 internal _interestRate;         // The annualized interest rate of the loan.
-    uint256 internal _closingRate;          // The fee rate (applied to principal) to close the loan.
-    uint256 internal _lateFeeRate;          // The fee rate for late payments.
-    uint256 internal _lateInterestPremium;  // The amount to increase the interest rate by for late payments.
-
-    // Requested Amounts
-    uint256 internal _collateralRequired;  // The collateral the borrower is expected to put up to draw down all _principalRequested.
-    uint256 internal _principalRequested;  // The funds the borrowers wants to borrow.
-    uint256 internal _endingPrincipal;     // The principal to remain at end of loan.
-
-    // State
-    uint256 internal _drawableFunds;               // The amount of funds that can be drawn down.
-    uint256 internal __deprecated_claimableFunds;  // Deprecated storage slot for `claimableFunds`.
-    uint256 internal _collateral;                  // The amount of collateral, in collateral asset, that is currently posted.
-    uint256 internal _nextPaymentDueDate;          // The timestamp of due date of next payment.
-    uint256 internal _paymentsRemaining;           // The number of payments remaining.
-    uint256 internal _principal;                   // The amount of principal yet to be paid down.
-
-    // Refinance
-    bytes32 internal _refinanceCommitment;  // Keccak-256 hash of the parameters of proposed terms of a refinance: `refinancer_`, `deadline_`, and `calls_`.
-
-    uint256 internal _refinanceInterest;  // Amount of accrued interest between the last payment on a loan and the time the refinance takes effect.
-
-    // Establishment fees
-    uint256 internal __deprecated_delegateFee;  // Deprecated storage slot for `delegateFee`.
-    uint256 internal __deprecated_treasuryFee;  // Deprecated storage slot for `treasuryFee`.
-
-    // Pool V2 dependencies
-    address internal _feeManager;  // Address responsible for calculating and handling fees
-
-    // Triggered defaults
-    uint256 internal _originalNextPaymentDueDate;  // Stores the original `nextPaymentDueDate` in order to allow triggered defaults to be reverted.
+    uint256 public override interestRate;         // The annualized interest rate of the loan.
+    uint256 public override lateFeeRate;          // The fee rate for late payments.
+    uint256 public override lateInterestPremium;  // The amount to increase the interest rate by for late payments.
 
 }

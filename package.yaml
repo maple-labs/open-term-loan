@@ -1,19 +1,15 @@
-name: loan
-version: 4.0.0-beta.0
+name: open-term-loan
+version: 0.0.1
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
     contractName: MapleLoan
   - path: contracts/MapleLoanFactory.sol
     contractName: MapleLoanFactory
-  - path: contracts/MapleLoanFeeManager.sol
-    contractName: MapleLoanFeeManager
   - path: contracts/MapleLoanInitializer.sol
     contractName: MapleLoanInitializer
   - path: contracts/MapleLoanStorage.sol
     contractName: MapleLoanStorage
-  - path: contracts/MapleLoanV4Migrator.sol
-    contractName: MapleLoanV4Migrator
-  - path: contracts/Refinancer.sol
-    contractName: Refinancer
+  - path: contracts/MapleRefinancer.sol
+    contractName: MapleRefinancer
 customDescription: Maple Loan Artifacts and ABIs

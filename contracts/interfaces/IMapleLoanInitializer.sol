@@ -6,76 +6,54 @@ import { IMapleLoanEvents } from "./IMapleLoanEvents.sol";
 interface IMapleLoanInitializer is IMapleLoanEvents {
 
     /**
-     *  @dev   Encodes the initialization arguments for a MapleLoan.
-     *  @param borrower_    The address of the borrower.
-     *  @param lender_      The address of the lender.
-     *  @param feeManager_  The address of the entity responsible for calculating fees.
-     *  @param assets_      Array of asset addresses.
-     *                       [0]: collateralAsset,
-     *                       [1]: fundsAsset
-     *  @param termDetails_ Array of loan parameters:
-     *                       [0]: gracePeriod,
-     *                       [1]: paymentInterval,
-     *                       [2]: payments
-     *  @param amounts_     Requested amounts:
-     *                       [0]: collateralRequired,
-     *                       [1]: principalRequested,
-     *                       [2]: endingPrincipal
-     *  @param rates_       Rates parameters:
-     *                       [0]: interestRate,
-     *                       [1]: closingFeeRate,
-     *                       [2]: lateFeeRate,
-     *                       [3]: lateInterestPremium,
-     *  @param fees_        Array of fees:
-     *                       [0]: delegateOriginationFee,
-     *                       [1]: delegateServiceFee
+     *  @dev    Encodes the initialization arguments for a MapleLoan.
+     *  @param  borrower_           The address of the borrower.
+     *  @param  lender_             The address of the lender.
+     *  @param  fundsAsset_         The address of the lent asset.
+     *  @param  principalRequested_ The amount of principal requested.
+     *  @param  termDetails_        Array of loan parameters:
+     *                                  [0]: gracePeriod,
+     *                                  [1]: noticePeriod,
+     *                                  [2]: paymentInterval,
+     *  @param  rates_              Fee parameters:
+     *                                  [0]: interestRate,
+     *                                  [1]: lateFeeRate,
+     *                                  [2]: lateInterestPremium
+     *  @return encodedArguments_  The encoded arguments for initializing a loan.
      */
     function encodeArguments(
         address borrower_,
         address lender_,
-        address feeManager_,
-        address[2] memory assets_,
-        uint256[3] memory termDetails_,
-        uint256[3] memory amounts_,
-        uint256[4] memory rates_,
-        uint256[2] memory fees_
+        address fundsAsset_,
+        uint256 principalRequested_,
+        uint32[3] memory termDetails_,
+        uint256[3] memory rates_
     ) external pure returns (bytes memory encodedArguments_);
 
     /**
-     *  @dev   Decodes the initialization arguments for a MapleLoan.
-     *  @return borrower_    The address of the borrower.
-     *  @return lender_      The address of the lender.
-     *  @return feeManager_  The address of the entity responsible for calculating fees.
-     *  @return assets_      Array of asset addresses.
-     *                        [0]: collateralAsset,
-     *                        [1]: fundsAsset
-     *  @return termDetails_ Array of loan parameters:
-     *                        [0]: gracePeriod,
-     *                        [1]: paymentInterval,
-     *                        [2]: payments
-     *  @return amounts_     Requested amounts:
-     *                        [0]: collateralRequired,
-     *                        [1]: principalRequested,
-     *                        [2]: endingPrincipal
-     *  @return rates_       Rates parameters:
-     *                        [0]: interestRate,
-     *                        [1]: closingFeeRate,
-     *                        [2]: lateFeeRate,
-     *                        [3]: lateInterestPremium,
-     *  @return fees_        Array of fees:
-     *                        [0]: delegateOriginationFee,
-     *                        [1]: delegateServiceFee
+     *  @dev    Decodes the initialization arguments for a MapleLoan.
+     *  @param  encodedArguments_   The encoded arguments for initializing a loan.
+     *  @return borrower_           The address of the borrower.
+     *  @return lender_             The address of the lender.
+     *  @return fundsAsset_         The address of the lent asset.
+     *  @return principalRequested_ The amount of principal requested.
+     *  @return termDetails_        Array of loan parameters:
+     *                                  [0]: gracePeriod,
+     *                                  [1]: noticePeriod,
+     *                                  [2]: paymentInterval,
+     *  @return rates_              Fee parameters:
+     *                                  [0]: interestRate,
+     *                                  [1]: lateFeeRate,
+     *                                  [2]: lateInterestPremium
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
             address borrower_,
             address lender_,
-            address feeManager_,
-            address[2] memory assets_,
-            uint256[3] memory termDetails_,
-            uint256[3] memory amounts_,
-            uint256[4] memory rates_,
-            uint256[2] memory fees_
+            address fundsAsset_,
+            uint256 principalRequested_,
+            uint32[3] memory termDetails_,
+            uint256[3] memory rates_
         );
 
 }

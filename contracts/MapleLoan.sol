@@ -6,8 +6,7 @@ import { ERC20Helper }           from "../modules/erc20-helper/src/ERC20Helper.s
 import { IMapleProxyFactory }    from "../modules/maple-proxy-factory/contracts/interfaces/IMapleProxyFactory.sol";
 import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/MapleProxiedInternals.sol";
 
-import { IMapleLoan }           from "./interfaces/IMapleLoan.sol";
-import { IMapleLoanFeeManager } from "./interfaces/IMapleLoanFeeManager.sol";
+import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
 
 import { IMapleGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
@@ -24,30 +23,27 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 */
 
+// TODO: Update ASCII art.
+// TODO: Reorder functions.
+// TODO: Use error codes.
+// TODO: Check order or impair and call without reverting in between.
+// TODO: Consider safe casting from uint256 to uint32/uint40.
+// TODO: Consider possibility of being called and impaired at the sme time (i.e. `isImpaired` and `isCalled`).
+// TODO: Issue with (re)impairing or (re)calling (or a mix) with losing the original next payment due date.
+// TODO: Consider having a `lastPaymentDate`, `callDate`, and `impairDate` with a virtual `nextPaymentDueDate` so that we no longer
+//       have to keep track of an "ugly" `originalNextPaymentDueDate`.
+
 /// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
-    uint256 private constant SCALED_ONE = uint256(10 ** 18);
-
-    modifier limitDrawableUse() {
-        if (msg.sender == _borrower) {
-            _;
-            return;
-        }
-
-        uint256 drawableFundsBeforePayment = _drawableFunds;
-
-        _;
-
-        // Either the caller is the borrower or `_drawableFunds` has not decreased.
-        require(_drawableFunds >= drawableFundsBeforePayment, "ML:CANNOT_USE_DRAWABLE");
-    }
+    uint256 private constant HUNDRED_PERCENT = 1e18;
 
     // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
     // * acceptNewTerms
-    // * fundLoan
-    // * impairLoan
-    // * removeLoanImpairment
+    // * call
+    // * fund
+    // * impair
+    // * removeImpairment
     // * repossess
     // * setPendingLender -> Not implemented
     modifier whenProtocolNotPaused() {
@@ -70,7 +66,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenProtocolNotPaused {
-        require(msg.sender == IMapleGlobalsLike(globals()).securityAdmin(), "ML:U:NOT_SECURITY_ADMIN");
+        require(msg.sender == borrower, "ML:U:NOT_BORROWER");
 
         emit Upgraded(toVersion_, arguments_);
 
@@ -82,183 +78,73 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
 
     function acceptBorrower() external override whenProtocolNotPaused {
-        require(msg.sender == _pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
+        require(msg.sender == pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
 
-        _pendingBorrower = address(0);
+        delete pendingBorrower;
 
-        emit BorrowerAccepted(_borrower = msg.sender);
+        emit BorrowerAccepted(borrower = msg.sender);
     }
 
-    function closeLoan(uint256 amount_)
-        external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_)
-    {
-        // The amount specified is an optional amount to be transferred from the caller, as a convenience for EOAs.
-        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(
-            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
-            "ML:CL:TRANSFER_FROM_FAILED"
-        );
-
-        uint256 paymentDueDate_ = _nextPaymentDueDate;
-
-        require(block.timestamp <= paymentDueDate_, "ML:CL:PAYMENT_IS_LATE");
-
-        _handleImpairment();
-
-        ( principal_, interest_, ) = getClosingPaymentBreakdown();
-
-        _refinanceInterest = uint256(0);
-
-        uint256 principalAndInterest = principal_ + interest_;
-
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
-
-        fees_ = _handleServiceFeePayment(_paymentsRemaining);
-
-        _clearLoanAccounting();
-
-        emit LoanClosed(principal_, interest_, fees_);
-
-        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
-
-        ILenderLike(_lender).claim(principal_, interest_, paymentDueDate_, 0);
-
-        emit FundsClaimed(principalAndInterest, _lender);
-    }
-
-    function drawdownFunds(uint256 amount_, address destination_)
-        external override whenProtocolNotPaused returns (uint256 collateralPosted_)
-    {
-        require(msg.sender == _borrower, "ML:DF:NOT_BORROWER");
+    function drawdown(uint256 amount_, address destination_) external override whenProtocolNotPaused {
+        require(msg.sender == borrower, "ML:D:NOT_BORROWER");
 
         emit FundsDrawnDown(amount_, destination_);
 
-        // Post additional collateral required to facilitate this drawdown, if needed.
-        uint256 additionalCollateralRequired = getAdditionalCollateralRequiredFor(amount_);
+        require(ERC20Helper.transfer(fundsAsset, destination_, amount_), "ML:D:TRANSFER_FAILED");
+    }
 
-        if (additionalCollateralRequired > uint256(0)) {
-            // Determine collateral currently unaccounted for.
-            uint256 unaccountedCollateral = getUnaccountedAmount(_collateralAsset);
+    function makePayment(uint256 principalToReturn_)
+        external override whenProtocolNotPaused returns (uint256 interest_, uint256 lateInterest_) {
+        // If the loan is called, the principal being returned must be greater than the portion called.
+        // TODO: Better error, but error codes would be better.
+        require(principalToReturn_ >= calledPrincipal, "ML:MP:INSUFFICIENT_FOR_CALL");
 
-            // Post required collateral, specifying then amount lacking as the optional amount to be transferred from.
-            collateralPosted_ = postCollateral(
-                additionalCollateralRequired > unaccountedCollateral ? additionalCollateralRequired - unaccountedCollateral : uint256(0)
+        ( interest_, lateInterest_ ) = nextPaymentBreakdown();
+
+        uint256 total = principalToReturn_ + interest_ + lateInterest_;
+
+        // TODO: Merge the transfers into one
+        // TODO: Cache `IERC20(fundsAsset).balanceOf(address(this))`
+
+        if (IERC20(fundsAsset).balanceOf(address(this)) < total) {
+            require(
+                ERC20Helper.transferFrom(fundsAsset, msg.sender, address(this), total - IERC20(fundsAsset).balanceOf(address(this))),
+                "ML:MP:TRANSFER_FROM_FAILED"
             );
         }
 
-        _drawableFunds -= amount_;
+        // NOTE: a payment clears loan impairment, and this is cheaper to always do.
+        delete originalNextPaymentDueDate;
 
-        require(ERC20Helper.transfer(_fundsAsset, destination_, amount_), "ML:DF:TRANSFER_FAILED");
-        require(_isCollateralMaintained(),                                "ML:DF:INSUFFICIENT_COLLATERAL");
-    }
-
-    function makePayment(uint256 amount_)
-        external override limitDrawableUse whenProtocolNotPaused returns (uint256 principal_, uint256 interest_, uint256 fees_)
-    {
-        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
-        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(
-            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
-            "ML:MP:TRANSFER_FROM_FAILED"
-        );
-
-        _handleImpairment();
-
-        ( principal_, interest_, ) = getNextPaymentBreakdown();
-
-        _refinanceInterest = uint256(0);
-
-        uint256 principalAndInterest = principal_ + interest_;
-
-        // The drawable funds are increased by the extra funds in the contract, minus the total needed for payment.
-        // NOTE: This line will revert if not enough funds were added for the full payment amount.
-        _drawableFunds = (_drawableFunds + getUnaccountedAmount(_fundsAsset)) - principalAndInterest;
-
-        fees_ = _handleServiceFeePayment(1);
-
-        uint256 paymentsRemaining_      = _paymentsRemaining;
-        uint256 previousPaymentDueDate_ = _nextPaymentDueDate;
-        uint256 nextPaymentDueDate_;
-
-        if (paymentsRemaining_ == uint256(1)) {
-            _clearLoanAccounting();  // Assumes `getNextPaymentBreakdown` returns a `principal_` that is `_principal`.
-        } else {
-            _nextPaymentDueDate  = nextPaymentDueDate_ = previousPaymentDueDate_ + _paymentInterval;
-            _principal          -= principal_;
-            _paymentsRemaining   = paymentsRemaining_ - uint256(1);
+        if (principalToReturn_ == principal) {
+            _clearLoanAccounting();
+            emit PrincipalReturned(principalToReturn_, 0);
+        } else if (principalToReturn_ > uint256(0)) {
+            delete calledPrincipal;
+            emit PrincipalReturned(principalToReturn_, principal -= principalToReturn_);
         }
 
-        emit PaymentMade(principal_, interest_, fees_);
+        uint256 previousPaymentDueDate_ = nextPaymentDueDate;
 
-        require(ERC20Helper.transfer(_fundsAsset, _lender, principalAndInterest), "ML:MP:TRANSFER_FAILED");
+        emit PaymentMade(lender, principalToReturn_, interest_, lateInterest_);
 
-        ILenderLike(_lender).claim(principal_, interest_, previousPaymentDueDate_, nextPaymentDueDate_);
+        require(ERC20Helper.transfer(fundsAsset, lender, total), "ML:MP:TRANSFER_FAILED");
 
-        emit FundsClaimed(principalAndInterest, _lender);
-
-        require(_isCollateralMaintained(), "ML:MP:INSUFFICIENT_COLLATERAL");
-    }
-
-    function postCollateral(uint256 amount_) public override whenProtocolNotPaused returns (uint256 collateralPosted_) {
-        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
-        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(
-            amount_ == uint256(0) || ERC20Helper.transferFrom(_collateralAsset, msg.sender, address(this), amount_),
-            "ML:PC:TRANSFER_FROM_FAILED"
-        );
-
-        _collateral += (collateralPosted_ = getUnaccountedAmount(_collateralAsset));
-
-        emit CollateralPosted(collateralPosted_);
-    }
-
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
-    {
-        require(msg.sender == _borrower,      "ML:PNT:NOT_BORROWER");
-        require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
-
-        emit NewTermsProposed(
-            refinanceCommitment_ = _refinanceCommitment = calls_.length > uint256(0)
-                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
-                : bytes32(0),
-            refinancer_,
-            deadline_,
-            calls_
+        ILenderLike(lender).claim(
+            principalToReturn_,
+            interest_ + lateInterest_,
+            previousPaymentDueDate_,
+            // NOTE: With this `nextPaymentDueDate` this way, a borrower can never overpay interest before closing (even partially) a loan.
+            // Payment Due Date always `paymentInterval` after last payment.
+            uint256(nextPaymentDueDate = uint40(block.timestamp + paymentInterval))  // TODO: This set iss wrong if loan is being closed.
         );
     }
 
-    function removeCollateral(uint256 amount_, address destination_) external override whenProtocolNotPaused {
-        require(msg.sender == _borrower, "ML:RC:NOT_BORROWER");
-
-        emit CollateralRemoved(amount_, destination_);
-
-        _collateral -= amount_;
-
-        require(ERC20Helper.transfer(_collateralAsset, destination_, amount_), "ML:RC:TRANSFER_FAILED");
-        require(_isCollateralMaintained(),                                     "ML:RC:INSUFFICIENT_COLLATERAL");
-    }
-
-    function returnFunds(uint256 amount_) external override whenProtocolNotPaused returns (uint256 fundsReturned_) {
-        // The amount specified is an optional amount to be transfer from the caller, as a convenience for EOAs.
-        // NOTE: FUNDS SHOULD NOT BE TRANSFERRED TO THIS CONTRACT NON-ATOMICALLY. IF THEY ARE, THE BALANCE MAY BE STOLEN USING `skim`.
-        require(
-            amount_ == uint256(0) || ERC20Helper.transferFrom(_fundsAsset, msg.sender, address(this), amount_),
-            "ML:RF:TRANSFER_FROM_FAILED"
-        );
-
-        _drawableFunds += (fundsReturned_ = getUnaccountedAmount(_fundsAsset));
-
-        emit FundsReturned(fundsReturned_);
-    }
-
-    function setPendingBorrower(address pendingBorrower_) external override whenProtocolNotPaused {
-        require(msg.sender == _borrower,                                   "ML:SPB:NOT_BORROWER");
+    function setPendingBorrower(address pendingBorrower_) external override {
+        require(msg.sender == borrower,                                    "ML:SPB:NOT_BORROWER");
         require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
-        emit PendingBorrowerSet(_pendingBorrower = pendingBorrower_);
+        emit PendingBorrowerSet(pendingBorrower = pendingBorrower_);
     }
 
     /**************************************************************************************************************************************/
@@ -266,199 +152,137 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
 
     function acceptLender() external override whenProtocolNotPaused {
-        require(msg.sender == _pendingLender, "ML:AL:NOT_PENDING_LENDER");
+        require(msg.sender == pendingLender, "ML:AL:NOT_PENDING_LENDER");
 
-        _pendingLender = address(0);
+        delete pendingLender;
 
-        emit LenderAccepted(_lender = msg.sender);
+        emit LenderAccepted(lender = msg.sender);
     }
 
-    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override returns (bytes32 refinanceCommitment_)
-    {
-        require(msg.sender == _lender, "ML:ANT:NOT_LENDER");
+    function call(uint256 principalToReturn_) external override returns (uint40 nextPaymentDueDate_) {
+        require(msg.sender == lender,            "ML:C:NOT_LENDER");
+        require(principalToReturn_ <= principal, "ML:C:INSUFFICIENT_PRINCIPAL");
+        require(calledPrincipal == uint256(0),   "ML:C:ALREADY_CALLED");          // TODO: Consider allowing call when already called.
 
-        // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
-        require(
-            _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
-            "ML:ANT:COMMITMENT_MISMATCH"
+        // TODO: Either cache originalNextPaymentDueDate or inline it in the _min call below, to save gas.
+        originalNextPaymentDueDate = nextPaymentDueDate;  // Store the existing payment due date to enable reversion.
+
+        emit Called(
+            calledPrincipal = principalToReturn_,
+            // If the loan is late, do not change the payment due date.
+            nextPaymentDueDate = nextPaymentDueDate_ = uint40(
+                _min(
+                    block.timestamp + noticePeriod,
+                    originalNextPaymentDueDate
+                )
+            )
         );
-
-        require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
-
-        require(block.timestamp <= deadline_, "ML:ANT:EXPIRED_COMMITMENT");
-
-        uint256 paymentInterval_           = _paymentInterval;
-        uint256 nextPaymentDueDate_        = _nextPaymentDueDate;
-        uint256 previousPrincipalRequested = _principalRequested;
-
-        uint256 timeSinceLastDueDate_ = block.timestamp + paymentInterval_ < nextPaymentDueDate_
-            ? 0
-            : block.timestamp - (nextPaymentDueDate_ - paymentInterval_);
-
-        // Not ideal for checks-effects-interactions,
-        // but the feeManager is a trusted contract and it's needed to save the fee before refinance.
-        IMapleLoanFeeManager feeManager_ = IMapleLoanFeeManager(_feeManager);
-        feeManager_.updateRefinanceServiceFees(previousPrincipalRequested, timeSinceLastDueDate_);
-
-        // Get the amount of interest owed since the last payment due date, as well as the time since the last due date
-        uint256 proRataInterest = getRefinanceInterest(block.timestamp);
-
-        // In case there is still a refinance interest, just increment it instead of setting it.
-        _refinanceInterest += proRataInterest;
-
-        // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
-        _refinanceCommitment = bytes32(0);
-
-        for (uint256 i; i < calls_.length;) {
-            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
-            require(success, "ML:ANT:FAILED");
-            unchecked { ++i; }
-        }
-
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
-
-        address fundsAsset_         = _fundsAsset;
-        uint256 principalRequested_ = _principalRequested;
-        paymentInterval_            = _paymentInterval;
-
-        // Increment the due date to be one full payment interval from now, to restart the payment schedule with new terms.
-        // NOTE: `_paymentInterval` here is possibly newly set via the above delegate calls, so cache it.
-        _nextPaymentDueDate = block.timestamp + paymentInterval_;
-
-        _handleImpairment();
-
-        // Update Platform Fees and pay originations.
-        feeManager_.updatePlatformServiceFee(principalRequested_, paymentInterval_);
-
-        _drawableFunds -= feeManager_.payOriginationFees(fundsAsset_, principalRequested_);
-
-        // Ensure that collateral is maintained after changes made.
-        require(_isCollateralMaintained(),                       "ML:ANT:INSUFFICIENT_COLLATERAL");
-        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:ANT:UNEXPECTED_FUNDS");
     }
 
-    function fundLoan() external override returns (uint256 fundsLent_) {
-        address lender_ = _lender;
+    function fund() external override returns (uint256 fundsLent_) {
+        address lender_ = lender;
 
-        require(msg.sender == lender_, "ML:FL:NOT_LENDER");
+        // TODO: Consider allowing setting lender if undefined, to allow any lender to fund.
+        require(msg.sender == lender_, "ML:F:NOT_LENDER");
 
-        // Can only fund loan if there are payments remaining (as defined by the initialization) and no payment is due yet (as set by a funding).
-        require((_nextPaymentDueDate == uint256(0)) && (_paymentsRemaining != uint256(0)), "ML:FL:LOAN_ACTIVE");
-
-        address fundsAsset_         = _fundsAsset;
-        uint256 paymentInterval_    = _paymentInterval;
-        uint256 principalRequested_ = _principalRequested;
-
-        require(ERC20Helper.approve(fundsAsset_, _feeManager, type(uint256).max), "ML:FL:APPROVE_FAIL");
-
-        // Saves the platform service fee rate for future payments.
-        IMapleLoanFeeManager(_feeManager).updatePlatformServiceFee(principalRequested_, paymentInterval_);
-
-        uint256 originationFees_ = IMapleLoanFeeManager(_feeManager).payOriginationFees(fundsAsset_, principalRequested_);
-
-        _drawableFunds = principalRequested_ - originationFees_;
-
-        require(getUnaccountedAmount(fundsAsset_) == uint256(0), "ML:FL:UNEXPECTED_FUNDS");
+        // Can only fund loan if there are payments remaining (as defined by the initialization)
+        // and no payment is due yet (as set by a funding).
+        require(nextPaymentDueDate == 0, "ML:F:LOAN_ACTIVE");
 
         emit Funded(
             lender_,
-            fundsLent_ = _principal = principalRequested_,
-            _nextPaymentDueDate = block.timestamp + paymentInterval_
+            fundsLent_ = principal,
+            nextPaymentDueDate = uint40(block.timestamp + paymentInterval)
+        );
+
+        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, address(this), fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
+    }
+
+    function impair() external override returns (uint40 nextPaymentDueDate_) {
+        require(msg.sender == lender, "ML:I:NOT_LENDER");
+
+        // TODO: Either cache originalNextPaymentDueDate or inline it in the _min call below, to save gas.
+        originalNextPaymentDueDate = nextPaymentDueDate;  // Store the existing payment due date to enable reversion.
+
+        emit Impaired(
+            // If the loan is late, do not change the payment due date.
+            nextPaymentDueDate = nextPaymentDueDate_ = uint40(
+                _min(
+                    block.timestamp,
+                    originalNextPaymentDueDate
+                )
+            )
         );
     }
 
-    function removeLoanImpairment() external override {
-        uint256 originalNextPaymentDueDate_ = _originalNextPaymentDueDate;
+    function removeImpairment() external override returns (uint40 nextPaymentDueDate_) {
+        uint40 originalNextPaymentDueDate_ = originalNextPaymentDueDate;
 
-        require(msg.sender == _lender,                          "ML:RLI:NOT_LENDER");
-        require(originalNextPaymentDueDate_ != 0,               "ML:RLI:NOT_IMPAIRED");
-        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RLI:PAST_DATE");
+        require(msg.sender == lender,                           "ML:RI:NOT_LENDER");
+        require(originalNextPaymentDueDate_ != 0,               "ML:RI:NOT_IMPAIRED");
+        require(block.timestamp <= originalNextPaymentDueDate_, "ML:RI:PAST_DATE");     // TODO: Is this still necessary?
 
-        _nextPaymentDueDate = originalNextPaymentDueDate_;
-        delete _originalNextPaymentDueDate;
+        emit ImpairmentRemoved(nextPaymentDueDate = nextPaymentDueDate_ = originalNextPaymentDueDate);
 
-        emit NextPaymentDueDateRestored(originalNextPaymentDueDate_);
+        delete originalNextPaymentDueDate;
     }
 
-    function repossess(address destination_) external override returns (uint256 collateralRepossessed_, uint256 fundsRepossessed_) {
-        require(msg.sender == _lender, "ML:R:NOT_LENDER");
+    // TODO: Check no issue with overriding originalNextPaymentDueDate alongside impair calls
+    function removeCall() external override returns (uint40 nextPaymentDueDate_) {
+        require(msg.sender == lender,          "ML:RC:NOT_LENDER");
+        require(calledPrincipal != uint256(0), "ML:RC:NOT_CALLED");
 
-        uint256 nextPaymentDueDate_ = _nextPaymentDueDate;
+        emit CallRemoved(nextPaymentDueDate = nextPaymentDueDate_ = originalNextPaymentDueDate);
+
+        delete originalNextPaymentDueDate;
+        delete calledPrincipal;
+    }
+
+    function repossess(address destination_) external override returns (uint256 fundsRepossessed_) {
+        require(msg.sender == lender, "ML:R:NOT_LENDER");
+
+        uint256 nextPaymentDueDate_ = nextPaymentDueDate;
 
         require(
-            nextPaymentDueDate_ != uint256(0) && (block.timestamp > nextPaymentDueDate_ + _gracePeriod),
+            // TODO: This date is incorrect if the loan is called. Consider a function for complete logic, or better date storage variables.
+            nextPaymentDueDate_ != uint256(0) && (block.timestamp > nextPaymentDueDate_ + gracePeriod),
             "ML:R:NOT_IN_DEFAULT"
         );
 
         _clearLoanAccounting();
 
-        // Uniquely in `_repossess`, stop accounting for all funds so that they can be swept.
-        _collateral    = uint256(0);
-        _drawableFunds = uint256(0);
+        address fundsAsset_ = fundsAsset;
 
-        address collateralAsset_ = _collateralAsset;
-
-        // Either there is no collateral to repossess, or the transfer of the collateral succeeds.
-        require(
-            (collateralRepossessed_ = getUnaccountedAmount(collateralAsset_)) == uint256(0) ||
-            ERC20Helper.transfer(collateralAsset_, destination_, collateralRepossessed_),
-            "ML:R:C_TRANSFER_FAILED"
-        );
-
-        address fundsAsset_ = _fundsAsset;
+        emit Repossessed(fundsRepossessed_, destination_);
 
         // Either there are no funds to repossess, or the transfer of the funds succeeds.
         require(
-            (fundsRepossessed_ = getUnaccountedAmount(fundsAsset_)) == uint256(0) ||
+            IERC20(fundsAsset_).balanceOf(address(this)) == uint256(0) ||
             ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_),
             "ML:R:F_TRANSFER_FAILED"
         );
-
-        emit Repossessed(collateralRepossessed_, fundsRepossessed_, destination_);
     }
 
     function setPendingLender(address pendingLender_) external override {
-        require(msg.sender == _lender, "ML:SPL:NOT_LENDER");
+        require(msg.sender == lender, "ML:SPL:NOT_LENDER");
 
-        emit PendingLenderSet(_pendingLender = pendingLender_);
-    }
-
-    function impairLoan() external override {
-        uint256 originalNextPaymentDueDate_ = _nextPaymentDueDate;
-
-        require(msg.sender == _lender, "ML:IL:NOT_LENDER");
-
-        // If the loan is late, do not change the payment due date.
-        uint256 newPaymentDueDate_ = block.timestamp > originalNextPaymentDueDate_ ? originalNextPaymentDueDate_ : block.timestamp;
-
-        emit LoanImpaired(newPaymentDueDate_);
-
-        _nextPaymentDueDate         = newPaymentDueDate_;
-        _originalNextPaymentDueDate = originalNextPaymentDueDate_;  // Store the existing payment due date to enable reversion.
+        emit PendingLenderSet(pendingLender = pendingLender_);
     }
 
     /**************************************************************************************************************************************/
     /*** Miscellaneous Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
 
-    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
-    {
-        require((msg.sender == _borrower) || (msg.sender == _lender), "ML:RNT:NO_AUTH");
-
-        require(
-            _refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
-            "ML:RNT:COMMITMENT_MISMATCH"
-        );
-
-        _refinanceCommitment = bytes32(0);
-
-        emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
-    }
-
     function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {
-        emit Skimmed(token_, skimmed_ = getUnaccountedAmount(token_), destination_);
+        require((msg.sender == borrower) || (msg.sender == lender), "ML:S:NOT_AUTHORIZED");
+        require(token_ != fundsAsset,                               "ML:S:FUNDS_ASSET");
+
+        skimmed_ = IERC20(token_).balanceOf(address(this));
+
+        require(skimmed_ > uint256(0), "ML:S:NO_TOKEN_TO_SKIM");
+
+        emit Skimmed(token_, skimmed_, destination_);
+
         require(ERC20Helper.transfer(token_, destination_, skimmed_), "ML:S:TRANSFER_FAILED");
     }
 
@@ -466,210 +290,40 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** View Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function getAdditionalCollateralRequiredFor(uint256 drawdown_) public view override returns (uint256 collateral_) {
-        // Determine the collateral needed in the contract for a reduced drawable funds amount.
-        uint256 collateralNeeded  = _getCollateralRequiredFor(_principal, _drawableFunds - drawdown_, _principalRequested, _collateralRequired);
-        uint256 currentCollateral = _collateral;
-
-        return collateralNeeded > currentCollateral ? collateralNeeded - currentCollateral : uint256(0);
-    }
-
-    function getClosingPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        (
-          uint256 delegateServiceFee_,
-          uint256 delegateRefinanceFee_,
-          uint256 platformServiceFee_,
-          uint256 platformRefinanceFee_
-        ) = IMapleLoanFeeManager(_feeManager).getServiceFeeBreakdown(address(this), _paymentsRemaining);
-
-        fees_ = delegateServiceFee_ + platformServiceFee_ + delegateRefinanceFee_ + platformRefinanceFee_;
-
-        // Compute interest and include any uncaptured interest from refinance.
-        interest_ = (((principal_ = _principal) * _closingRate) / SCALED_ONE) + _refinanceInterest;
-    }
-
-    function getNextPaymentDetailedBreakdown()
-        public view override returns (uint256 principal_, uint256[3] memory interest_, uint256[2] memory fees_)
-    {
-        ( principal_, interest_, fees_ )
+    function nextPaymentBreakdown() public view override returns (uint256 interest_, uint256 lateInterest_) {
+        ( interest_, lateInterest_ )
             = _getPaymentBreakdown(
-                block.timestamp,
-                _nextPaymentDueDate,
-                _paymentInterval,
-                _principal,
-                _endingPrincipal,
-                _paymentsRemaining,
-                _interestRate,
-                _lateFeeRate,
-                _lateInterestPremium
+                principal,
+                interestRate,
+                lateInterestPremium,
+                lateFeeRate,
+                uint32(block.timestamp - (nextPaymentDueDate - paymentInterval)),                        // Time since last payment.
+                uint32(block.timestamp > nextPaymentDueDate ? block.timestamp - nextPaymentDueDate : 0)  // Time since payment due date.
             );
-    }
-
-    function getNextPaymentBreakdown() public view override returns (uint256 principal_, uint256 interest_, uint256 fees_) {
-        uint256[3] memory interestArray_;
-        uint256[2] memory feesArray_;
-
-        ( principal_, interestArray_, feesArray_ ) = _getPaymentBreakdown(
-            block.timestamp,
-            _nextPaymentDueDate,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _paymentsRemaining,
-            _interestRate,
-            _lateFeeRate,
-            _lateInterestPremium
-        );
-
-        interest_ = interestArray_[0] + interestArray_[1] + interestArray_[2];
-        fees_     = feesArray_[0]     + feesArray_[1];
-    }
-
-    function getRefinanceInterest(uint256 timestamp_) public view override returns (uint256 proRataInterest_) {
-        proRataInterest_ = _getRefinanceInterest(
-            timestamp_,
-            _paymentInterval,
-            _principal,
-            _endingPrincipal,
-            _interestRate,
-            _paymentsRemaining,
-            _nextPaymentDueDate,
-            _lateFeeRate,
-            _lateInterestPremium
-        );
-    }
-
-    function getUnaccountedAmount(address asset_) public view override returns (uint256 unaccountedAmount_) {
-        return IERC20(asset_).balanceOf(address(this))
-            - (asset_ == _collateralAsset ? _collateral    : uint256(0))   // `_collateral` is `_collateralAsset` accounted for.
-            - (asset_ == _fundsAsset      ? _drawableFunds : uint256(0));  // `_drawableFunds` is `_fundsAsset` accounted for.
     }
 
     /**************************************************************************************************************************************/
     /*** State View Functions                                                                                                           ***/
     /**************************************************************************************************************************************/
 
-    function borrower() external view override returns (address borrower_) {
-        return _borrower;
-    }
-
-    function closingRate() external view override returns (uint256 closingRate_) {
-        return _closingRate;
-    }
-
-    function collateral() external view override returns (uint256 collateral_) {
-        return _collateral;
-    }
-
-    function collateralAsset() external view override returns (address collateralAsset_) {
-        return _collateralAsset;
-    }
-
-    function collateralRequired() external view override returns (uint256 collateralRequired_) {
-        return _collateralRequired;
-    }
-
-    function drawableFunds() external view override returns (uint256 drawableFunds_) {
-        return _drawableFunds;
-    }
-
-    function endingPrincipal() external view override returns (uint256 endingPrincipal_) {
-        return _endingPrincipal;
-    }
-
-    function excessCollateral() external view override returns (uint256 excessCollateral_) {
-        uint256 collateralNeeded  = _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
-        uint256 currentCollateral = _collateral;
-
-        return currentCollateral > collateralNeeded ? currentCollateral - collateralNeeded : uint256(0);
-    }
-
     function factory() external view override returns (address factory_) {
         return _factory();
-    }
-
-    function feeManager() external view override returns (address feeManager_) {
-        return _feeManager;
-    }
-
-    function fundsAsset() external view override returns (address fundsAsset_) {
-        return _fundsAsset;
     }
 
     function globals() public view override returns (address globals_) {
         globals_ = IMapleProxyFactoryLike(_factory()).mapleGlobals();
     }
 
-    function governor() public view override returns (address governor_) {
-        governor_ = IMapleGlobalsLike(globals()).governor();
-    }
-
-    function gracePeriod() external view override returns (uint256 gracePeriod_) {
-        return _gracePeriod;
-    }
-
     function implementation() external view override returns (address implementation_) {
         return _implementation();
     }
 
-    function interestRate() external view override returns (uint256 interestRate_) {
-        return _interestRate;
-    }
-
-    function lateFeeRate() external view override returns (uint256 lateFeeRate_) {
-        return _lateFeeRate;
-    }
-
-    function lateInterestPremium() external view override returns (uint256 lateInterestPremium_) {
-        return _lateInterestPremium;
-    }
-
-    function lender() external view override returns (address lender_) {
-        return _lender;
-    }
-
-    function nextPaymentDueDate() external view override returns (uint256 nextPaymentDueDate_) {
-        return _nextPaymentDueDate;
-    }
-
-    function originalNextPaymentDueDate() external view override returns (uint256 originalNextPaymentDueDate_) {
-        return _originalNextPaymentDueDate;
-    }
-
-    function paymentInterval() external view override returns (uint256 paymentInterval_) {
-        return _paymentInterval;
-    }
-
-    function paymentsRemaining() external view override returns (uint256 paymentsRemaining_) {
-        return _paymentsRemaining;
-    }
-
-    function pendingBorrower() external view override returns (address pendingBorrower_) {
-        return _pendingBorrower;
-    }
-
-    function pendingLender() external view override returns (address pendingLender_) {
-        return _pendingLender;
-    }
-
-    function principal() external view override returns (uint256 principal_) {
-        return _principal;
-    }
-
-    function principalRequested() external view override returns (uint256 principalRequested_) {
-        return _principalRequested;
-    }
-
-    function refinanceCommitment() external view override returns (bytes32 refinanceCommitment_) {
-        return _refinanceCommitment;
-    }
-
-    function refinanceInterest() external view override returns (uint256 refinanceInterest_) {
-        return _refinanceInterest;
+    function isCalled() public view override returns (bool isCalled_) {
+        isCalled_ = calledPrincipal != uint256(0);
     }
 
     function isImpaired() public view override returns (bool isImpaired_) {
-        return _originalNextPaymentDueDate != uint256(0);
+        isImpaired_ = (originalNextPaymentDueDate != uint40(0)) && !isCalled();
     }
 
     /**************************************************************************************************************************************/
@@ -678,276 +332,51 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     /// @dev Clears all state variables to end a loan, but keep borrower and lender withdrawal functionality intact.
     function _clearLoanAccounting() internal {
-        _gracePeriod     = uint256(0);
-        _paymentInterval = uint256(0);
+        delete gracePeriod;
+        delete noticePeriod;
+        delete paymentInterval;
 
-        _interestRate        = uint256(0);
-        _closingRate         = uint256(0);
-        _lateFeeRate         = uint256(0);
-        _lateInterestPremium = uint256(0);
+        delete nextPaymentDueDate;
+        delete originalNextPaymentDueDate;
 
-        _endingPrincipal = uint256(0);
+        delete calledPrincipal;
+        delete principal;
 
-        _nextPaymentDueDate = uint256(0);
-        _paymentsRemaining  = uint256(0);
-        _principal          = uint256(0);
-
-        _originalNextPaymentDueDate = uint256(0);
-    }
-
-    /**************************************************************************************************************************************/
-    /*** Internal View Functions                                                                                                        ***/
-    /**************************************************************************************************************************************/
-
-    /// @dev Returns whether the amount of collateral posted is commensurate with the amount of drawn down (outstanding) principal.
-    function _isCollateralMaintained() internal view returns (bool isMaintained_) {
-        return _collateral >= _getCollateralRequiredFor(_principal, _drawableFunds, _principalRequested, _collateralRequired);
+        delete interestRate;
+        delete lateFeeRate;
+        delete lateInterestPremium;
     }
 
     /**************************************************************************************************************************************/
     /*** Internal Pure Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
 
-    /// @dev Returns the total collateral to be posted for some drawn down (outstanding) principal and overall collateral ratio requirement.
-    function _getCollateralRequiredFor(
-        uint256 principal_,
-        uint256 drawableFunds_,
-        uint256 principalRequested_,
-        uint256 collateralRequired_
-    )
-        internal pure returns (uint256 collateral_)
-    {
-        // Where (collateral / outstandingPrincipal) should be greater or equal to (collateralRequired / principalRequested).
-        // NOTE: principalRequested_ cannot be 0, which is reasonable, since it means this was never a loan.
-        return principal_ <= drawableFunds_
-            ? uint256(0)
-            : (collateralRequired_ * (principal_ - drawableFunds_) + principalRequested_ - 1) / principalRequested_;
-    }
-
-    /// @dev Returns principal and interest portions of a payment instalment, given generic, stateless loan parameters.
-    function _getInstallment(
-        uint256 principal_,
-        uint256 endingPrincipal_,
-        uint256 interestRate_,
-        uint256 paymentInterval_,
-        uint256 totalPayments_
-    )
-        internal pure returns (uint256 principalAmount_, uint256 interestAmount_)
-    {
-        /*************************************************************************************************\
-         *                             |                                                                 *
-         * A = installment amount      |      /                         \     /           R           \  *
-         * P = principal remaining     |     |  /                 \      |   | ----------------------- | *
-         * R = interest rate           | A = | | P * ( 1 + R ) ^ N | - E | * |   /             \       | *
-         * N = payments remaining      |     |  \                 /      |   |  | ( 1 + R ) ^ N | - 1  | *
-         * E = ending principal target |      \                         /     \  \             /      /  *
-         *                             |                                                                 *
-         *                             |---------------------------------------------------------------- *
-         *                                                                                               *
-         * - Where R           is `periodicRate`                                                         *
-         * - Where (1 + R) ^ N is `raisedRate`                                                           *
-         * - Both of these rates are scaled by 1e18 (e.g., 12% => 0.12 * 10 ** 18)                       *
-        \*************************************************************************************************/
-
-        uint256 periodicRate = _getPeriodicInterestRate(interestRate_, paymentInterval_);
-        uint256 raisedRate   = _scaledExponent(SCALED_ONE + periodicRate, totalPayments_, SCALED_ONE);
-
-        // NOTE: If a lack of precision in `_scaledExponent` results in a `raisedRate` smaller than one,
-        //       assume it to be one and simplify the equation.
-        if (raisedRate <= SCALED_ONE) return ((principal_ - endingPrincipal_) / totalPayments_, uint256(0));
-
-        uint256 total = ((((principal_ * raisedRate) / SCALED_ONE) - endingPrincipal_) * periodicRate) / (raisedRate - SCALED_ONE);
-
-        interestAmount_  = _getInterest(principal_, interestRate_, paymentInterval_);
-        principalAmount_ = total >= interestAmount_ ? total - interestAmount_ : uint256(0);
-    }
-
     /// @dev Returns an amount by applying an annualized and scaled interest rate, to a principal, over an interval of time.
-    function _getInterest(uint256 principal_, uint256 interestRate_, uint256 interval_) internal pure returns (uint256 interest_) {
-        return (principal_ * _getPeriodicInterestRate(interestRate_, interval_)) / SCALED_ONE;
-    }
-
-    /// @dev Returns total principal and interest portion of a number of payments, given generic, stateless loan parameters and loan state.
     function _getPaymentBreakdown(
-        uint256 currentTime_,
-        uint256 nextPaymentDueDate_,
-        uint256 paymentInterval_,
-        uint256 principal_,
-        uint256 endingPrincipal_,
-        uint256 paymentsRemaining_,
-        uint256 interestRate_,
-        uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
-    )
-        internal view
-        returns (
-            uint256 principalAmount_,
-            uint256[3] memory interest_,
-            uint256[2] memory fees_
-        )
-    {
-        ( principalAmount_, interest_[0] ) = _getInstallment(
-            principal_,
-            endingPrincipal_,
-            interestRate_,
-            paymentInterval_,
-            paymentsRemaining_
-        );
-
-        principalAmount_ = paymentsRemaining_ == uint256(1) ? principal_ : principalAmount_;
-
-        interest_[1] = _getLateInterest(
-            currentTime_,
-            principal_,
-            interestRate_,
-            nextPaymentDueDate_,
-            lateFeeRate_,
-            lateInterestPremium_
-        );
-
-        interest_[2] = _refinanceInterest;
-
-        (
-            uint256 delegateServiceFee_,
-            uint256 delegateRefinanceFee_,
-            uint256 platformServiceFee_,
-            uint256 platformRefinanceFee_
-        ) = IMapleLoanFeeManager(_feeManager).getServiceFeeBreakdown(address(this), 1);
-
-        fees_[0] = delegateServiceFee_ + delegateRefinanceFee_;
-        fees_[1] = platformServiceFee_ + platformRefinanceFee_;
-    }
-
-    function _getRefinanceInterest(
-        uint256 currentTime_,
-        uint256 paymentInterval_,
-        uint256 principal_,
-        uint256 endingPrincipal_,
-        uint256 interestRate_,
-        uint256 paymentsRemaining_,
-        uint256 nextPaymentDueDate_,
-        uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
-    )
-        internal pure returns (uint256 refinanceInterest_)
-    {
-        // If the user has made an early payment, there is no refinance interest owed.
-        if (currentTime_ + paymentInterval_ < nextPaymentDueDate_) return 0;
-
-        uint256 refinanceInterestInterval_ = _min(currentTime_ - (nextPaymentDueDate_ - paymentInterval_), paymentInterval_);
-
-        ( , refinanceInterest_ ) = _getInstallment(
-            principal_,
-            endingPrincipal_,
-            interestRate_,
-            refinanceInterestInterval_,
-            paymentsRemaining_
-        );
-
-        refinanceInterest_ += _getLateInterest(
-            currentTime_,
-            principal_,
-            interestRate_,
-            nextPaymentDueDate_,
-            lateFeeRate_,
-            lateInterestPremium_
-        );
-    }
-
-    function _getLateInterest(
-        uint256 currentTime_,
         uint256 principal_,
         uint256 interestRate_,
-        uint256 nextPaymentDueDate_,
+        uint256 lateInterestPremium_,
         uint256 lateFeeRate_,
-        uint256 lateInterestPremium_
+        uint32 interval_,
+        uint32 lateInterval_
     )
-        internal pure returns (uint256 lateInterest_)
+        internal pure returns (uint256 interest_, uint256 lateInterest_)
     {
-        if (currentTime_ <= nextPaymentDueDate_) return 0;
+        interest_ = _getProRatedAmount(principal_, interestRate_, interval_);
 
-        // Calculates the number of full days late in seconds (will always be multiples of 86,400).
-        // Rounds up and is inclusive so that if a payment is 1s late or 24h0m0s late it is 1 full day late.
-        // 24h0m1s late would be two full days late.
-        // ((86400n - 0n + (86400n - 1n)) / 86400n) * 86400n = 86400n
-        // ((86401n - 0n + (86400n - 1n)) / 86400n) * 86400n = 172800n
-        uint256 fullDaysLate = ((currentTime_ - nextPaymentDueDate_ + (1 days - 1)) / 1 days) * 1 days;
+        if (lateInterval_ == 0) return (interest_, 0);
 
-        lateInterest_ += _getInterest(principal_, interestRate_ + lateInterestPremium_, fullDaysLate);
-        lateInterest_ += (lateFeeRate_ * principal_) / SCALED_ONE;
+        lateInterest_ =
+            _getProRatedAmount(principal_, interestRate_ + lateInterestPremium_, lateInterval_) +
+            ((principal_ * lateFeeRate_) / HUNDRED_PERCENT);
     }
 
-    /// @dev Returns the interest rate over an interval, given an annualized interest rate.
-    function _getPeriodicInterestRate(uint256 interestRate_, uint256 interval_) internal pure returns (uint256 periodicInterestRate_) {
-        return (interestRate_ * interval_) / uint256(365 days);
+    function _getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) internal pure returns (uint256 proRatedAmount_) {
+        proRatedAmount_ = (amount_ * rate_ * interval_) / (uint256(365 days) * HUNDRED_PERCENT);
     }
 
-    /// @dev Returns refinance commitment given refinance parameters.
-    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        internal pure returns (bytes32 refinanceCommitment_)
-    {
-        return keccak256(abi.encode(refinancer_, deadline_, calls_));
-    }
-
-    function _handleServiceFeePayment(uint256 numberOfPayments_) internal returns (uint256 fees_) {
-        uint256 balanceBeforeServiceFees_ = IERC20(_fundsAsset).balanceOf(address(this));
-
-        IMapleLoanFeeManager(_feeManager).payServiceFees(_fundsAsset, numberOfPayments_);
-
-        uint256 balanceAfterServiceFees_ = IERC20(_fundsAsset).balanceOf(address(this));
-
-        if (balanceBeforeServiceFees_ > balanceAfterServiceFees_) {
-            _drawableFunds -= (fees_ = balanceBeforeServiceFees_ - balanceAfterServiceFees_);
-        } else {
-            _drawableFunds += balanceAfterServiceFees_ - balanceBeforeServiceFees_;
-        }
-    }
-
-    function _handleImpairment() internal {
-        if (!isImpaired()) return;
-        _originalNextPaymentDueDate = uint256(0);
-    }
-
-    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 minimum_) {
-        minimum_ = a_ < b_ ? a_ : b_;
-    }
-
-    /**
-     *  @dev Returns exponentiation of a scaled base value.
-     *
-     *       Walk through example:
-     *       LINE  |  base_          |  exponent_  |  one_  |  result_
-     *             |  3_00           |  18         |  1_00  |  0_00
-     *        A    |  3_00           |  18         |  1_00  |  1_00
-     *        B    |  3_00           |  9          |  1_00  |  1_00
-     *        C    |  9_00           |  9          |  1_00  |  1_00
-     *        D    |  9_00           |  9          |  1_00  |  9_00
-     *        B    |  9_00           |  4          |  1_00  |  9_00
-     *        C    |  81_00          |  4          |  1_00  |  9_00
-     *        B    |  81_00          |  2          |  1_00  |  9_00
-     *        C    |  6_561_00       |  2          |  1_00  |  9_00
-     *        B    |  6_561_00       |  1          |  1_00  |  9_00
-     *        C    |  43_046_721_00  |  1          |  1_00  |  9_00
-     *        D    |  43_046_721_00  |  1          |  1_00  |  387_420_489_00
-     *        B    |  43_046_721_00  |  0          |  1_00  |  387_420_489_00
-     *
-     * Another implementation of this algorithm can be found in Dapphub's DSMath contract:
-     * https://github.com/dapphub/ds-math/blob/ce67c0fa9f8262ecd3d76b9e4c026cda6045e96c/src/math.sol#L77
-     */
-    function _scaledExponent(uint256 base_, uint256 exponent_, uint256 one_) internal pure returns (uint256 result_) {
-        // If exponent_ is odd, set result_ to base_, else set to one_.
-        result_ = exponent_ & uint256(1) != uint256(0) ? base_ : one_;          // A
-
-        // Divide exponent_ by 2 (overwriting itself) and proceed if not zero.
-        while ((exponent_ >>= uint256(1)) != uint256(0)) {                      // B
-            base_ = (base_ * base_) / one_;                                     // C
-
-            // If exponent_ is even, go back to top.
-            if (exponent_ & uint256(1) == uint256(0)) continue;
-
-            // If exponent_ is odd, multiply result_ is multiplied by base_.
-            result_ = (result_ * base_) / one_;                                 // D
-        }
+    function _min(uint256 a_, uint256 b_) internal pure returns (uint256 min_) {
+        min_ = a_ < b_ ? a_ : b_;
     }
 
 }

@@ -4,14 +4,18 @@ install:
 update:
 	@forge update
 
+# Build and test
+
+profile ?=default
+
 build:
-	@scripts/build.sh -p default
+	@FOUNDRY_PROFILE=production forge build
 
 release:
-	@scripts/release.sh
+	@release.sh
 
 test:
-	@scripts/test.sh -p default
+	forge test
 
 clean:
 	@forge clean
