@@ -27,7 +27,7 @@ interface IMapleGlobalsLike {
 
 interface ILenderLike {
 
-    function claim(uint256 principal_, uint256 interest_, uint256 previousPaymentDueDate_, uint256 nextPaymentDueDate_) external;
+    function claim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external;
 
     function factory() external view returns (address factory_);
 

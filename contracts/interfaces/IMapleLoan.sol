@@ -6,7 +6,7 @@ import { IMapleProxied } from "../../modules/maple-proxy-factory/contracts/inter
 import { IMapleLoanEvents }  from "./IMapleLoanEvents.sol";
 import { IMapleLoanStorage } from "./IMapleLoanStorage.sol";
 
-/// @title MapleLoan implements a primitive loan with additional functionality, and is intended to be proxied.
+/// @title MapleLoan implements an open term loan, and is intended to be proxied.
 interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**************************************************************************************************************************************/
@@ -25,10 +25,10 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**
      *  @dev    The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
-     *  @param  principalToReturn_  The minimum amount of principal the borrower must return.
-     *  @return nextPaymentDueDate_ The payment due date for returning the principal and pro-rate interest to the lender.
+     *  @param  principalToReturn_ The minimum amount of principal the borrower must return.
+     *  @return paymentDueDate_    The payment due date for returning the principal and pro-rate interest to the lender.
      */
-    function call(uint256 principalToReturn_) external returns (uint40 nextPaymentDueDate_);
+    function call(uint256 principalToReturn_) external returns (uint40 paymentDueDate_);
 
     /**
      *  @dev   Draw down funds from the loan.
@@ -39,16 +39,17 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**
      *  @dev    Lend funds to the loan/borrower.
-     *  @return fundsLent_ The amount funded.
+     *  @return fundsLent_      The amount funded.
+     *  @return paymentDueDate_ The next payment due date.
      */
-    function fund() external returns (uint256 fundsLent_);
+    function fund() external returns (uint256 fundsLent_, uint40 paymentDueDate_);
 
     /**
      *  @dev    Fast forward the next payment due date to the current time.
      *          This enables the pool delegate to force a payment (or default).
-     *  @return nextPaymentDueDate_ The new payment due date to result in the removal of the loan's impairment status.
+     *  @return paymentDueDate_ The new payment due date to result in the removal of the loan's impairment status.
      */
-    function impair() external returns (uint40 nextPaymentDueDate_);
+    function impair() external returns (uint40 paymentDueDate_);
 
     /**
      *  @dev    Make a payment to the loan.
@@ -60,15 +61,15 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**
      *  @dev    Remove the loan's called status.
-     *  @return nextPaymentDueDate_ The restored payment due date.
+     *  @return paymentDueDate_ The restored payment due date.
      */
-    function removeCall() external returns (uint40 nextPaymentDueDate_);
+    function removeCall() external returns (uint40 paymentDueDate_);
 
     /**
      *  @dev    Remove the loan impairment by restoring the original payment due date.
-     *  @return nextPaymentDueDate_ The restored payment due date.
+     *  @return paymentDueDate_ The restored payment due date.
      */
-    function removeImpairment() external returns (uint40 nextPaymentDueDate_);
+    function removeImpairment() external returns (uint40 paymentDueDate_);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.
@@ -102,27 +103,40 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     /**************************************************************************************************************************************/
 
     /**
+     *  @dev The timestamp of the date the loan will be in default.
+     */
+    function defaultDate() external view returns (uint40 defaultDate_);
+
+    /**
      *  @dev The Maple globals address
      */
     function globals() external view returns (address globals_);
 
     /**
-     *  @dev    Return if the loan has been called.
-     *  @return isCalled_ Whether the loan is called.
+     *  @dev Whether the loan is called.
      */
     function isCalled() external view returns (bool isCalled_);
 
     /**
-     *  @dev    Return if the loan has been impaired.
-     *  @return isImpaired_ Whether the loan is impaired.
+     *  @dev Whether the loan is impaired.
      */
     function isImpaired() external view returns (bool isImpaired_);
+
+    /**
+     *  @dev Whether the loan is in default.
+     */
+    function isInDefault() external view returns (bool isInDefault_);
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
      *  @return interest_     The portion of the total amount that will go towards interest fees.
      *  @return lateInterest_ The portion of the total amount that will go towards late interest fees.
      */
-    function nextPaymentBreakdown() external view returns (uint256 interest_, uint256 lateInterest_);
+    function paymentBreakdown() external view returns (uint256 interest_, uint256 lateInterest_);
+
+    /**
+     *  @dev The timestamp of the due date of the next payment.
+     */
+    function paymentDueDate() external view returns (uint40 paymentDueDate_);
 
 }

@@ -19,6 +19,26 @@ interface IMapleLoanStorage {
     function calledPrincipal() external view returns (uint256 calledPrincipal_);
 
     /**
+     *  @dev The timestamp of the date the loan was called.
+     */
+    function dateCalled() external view returns (uint40 dateCalled_);
+
+    /**
+     *  @dev The timestamp of the date the loan was funded.
+     */
+    function dateFunded() external view returns (uint40 dateFunded_);
+
+    /**
+     *  @dev The timestamp of the date the loan was impaired.
+     */
+    function dateImpaired() external view returns (uint40 dateImpaired_);
+
+    /**
+     *  @dev The timestamp of the date the loan was last paid.
+     */
+    function datePaid() external view returns (uint40 datePaid_);
+
+    /**
      *  @dev The fundsAsset deposited by the lender to fund the loan.
      */
     function fundsAsset() external view returns (address asset_);
@@ -49,19 +69,9 @@ interface IMapleLoanStorage {
     function lender() external view returns (address lender_);
 
     /**
-     *  @dev The timestamp due date of the next payment.
-     */
-    function nextPaymentDueDate() external view returns (uint40 nextPaymentDueDate_);
-
-    /**
      *  @dev The amount of time the borrower has, after the loan is called, to close the loan.
      */
     function noticePeriod() external view returns (uint32 noticePeriod_);
-
-    /**
-     *  @dev The saved original payment due date from a loan impairment.
-     */
-    function originalNextPaymentDueDate() external view returns (uint40 originalNextPaymentDueDate_);
 
     /**
      *  @dev The specified time between loan payments.
