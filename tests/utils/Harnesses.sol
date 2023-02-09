@@ -5,8 +5,6 @@ import { MapleLoan } from "../../contracts/MapleLoan.sol";
 
 contract MapleLoanHarness is MapleLoan {
 
-    uint256 private constant HUNDRED_PERCENT = 1e18;
-
     /**************************************************************************************************************************************/
     /*** Mutating Functions                                                                                                             ***/
     /**************************************************************************************************************************************/
@@ -69,6 +67,10 @@ contract MapleLoanHarness is MapleLoan {
 
     function __setLateInterestPremium(uint256 lateInterestPremium_) external {
         lateInterestPremium = lateInterestPremium_;
+    }
+
+    function __setPrincipal(uint256 principal_) external {
+        principal = principal_;
     }
 
     /**************************************************************************************************************************************/
