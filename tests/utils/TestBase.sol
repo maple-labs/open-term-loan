@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { console2, Test }      from "../../modules/forge-std/src/Test.sol";
+import { MockERC20 }      from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { console2, Test } from "../../modules/forge-std/src/Test.sol";
 
 import { MapleLoanHarness }              from "./Harnesses.sol";
 import { MapleGlobalsMock, MockFactory } from "./Mocks.sol";
 
 contract TestBase is Test {
 
+    address asset;
     address factory;
     address globals;
     address governor;
@@ -17,6 +18,8 @@ contract TestBase is Test {
 
     function setUp() public virtual {
         governor = makeAddr("governor");
+
+        asset    = address(new MockERC20("Asset", "A", 6));
         globals  = address(new MapleGlobalsMock(governor));
         factory  = address(new MockFactory(globals));
 
