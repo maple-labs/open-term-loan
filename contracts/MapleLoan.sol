@@ -166,6 +166,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(msg.sender == lender,            "ML:C:NOT_LENDER");
         require(principalToReturn_ <= principal, "ML:C:INSUFFICIENT_PRINCIPAL");
 
+        // TODO: Investigate if we should add a check for if the loan is already called.
+
         dateCalled = uint40(block.timestamp);
 
         emit Called(
@@ -191,14 +193,16 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transferFrom(fundsAsset, msg.sender, address(this), fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
     }
 
-    function impair() external override returns (uint40 paymentDueDate_) {
+    function impair() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:I:NOT_LENDER");
+        require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
+        require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: Investigate if this is necessary
 
         dateImpaired = uint40(block.timestamp);
 
         emit Impaired(
             paymentDueDate_ = paymentDueDate(),
-            defaultDate()
+            defaultDate_    = defaultDate()
         );
     }
 
@@ -214,15 +218,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeImpairment() external override returns (uint40 paymentDueDate_) {
-        require(msg.sender == lender,      "ML:RI:NOT_LENDER");
-        require(dateImpaired == uint40(0), "ML:RI:NOT_IMPAIRED");
+    function removeImpairment() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+        require(msg.sender == lender, "ML:RI:NOT_LENDER");
+        require(dateImpaired != 0,    "ML:RI:NOT_IMPAIRED");
 
         delete dateImpaired;
 
         emit ImpairmentRemoved(
             paymentDueDate_ = paymentDueDate(),
-            defaultDate()
+            defaultDate_    = defaultDate()
         );
     }
 

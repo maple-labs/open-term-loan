@@ -48,8 +48,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
      *  @dev    Fast forward the next payment due date to the current time.
      *          This enables the pool delegate to force a payment (or default).
      *  @return paymentDueDate_ The new payment due date to result in the removal of the loan's impairment status.
+     *  @return defaultDate_    The timestamp of the date the loan will be in default.
      */
-    function impair() external returns (uint40 paymentDueDate_);
+    function impair() external returns (uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev    Make a payment to the loan.
@@ -68,8 +69,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     /**
      *  @dev    Remove the loan impairment by restoring the original payment due date.
      *  @return paymentDueDate_ The restored payment due date.
+     *  @return defaultDate_    The timestamp of the date the loan will be in default.
      */
-    function removeImpairment() external returns (uint40 paymentDueDate_);
+    function removeImpairment() external returns (uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev    Repossess collateral, and any funds, for a loan in default.

@@ -19,9 +19,9 @@ contract TestBase is Test {
     function setUp() public virtual {
         governor = makeAddr("governor");
 
-        asset    = address(new MockERC20("Asset", "A", 6));
-        globals  = address(new MapleGlobalsMock(governor));
-        factory  = address(new MockFactory(globals));
+        asset   = address(new MockERC20("Asset", "A", 6));
+        globals = address(new MapleGlobalsMock(governor));
+        factory = address(new MockFactory(globals));
 
         start = block.timestamp;
     }
