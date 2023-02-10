@@ -14,20 +14,10 @@ contract MapleLoanHarness is MapleLoan {
     }
 
     /**************************************************************************************************************************************/
-    /*** View Functions                                                                                                                 ***/
-    /**************************************************************************************************************************************/
-
-    function __dueDates() external view returns (uint256 callDueDate_, uint256 impairedDueDate_, uint256 normalDueDate_) {
-        return _dueDates();
-    }
-
-    function __defaultDates() external view returns (uint256 callDefaultDate_, uint256 impairedDefaultDate_, uint256 normalDefaultDate_) {
-        return _defaultDates();
-    }
-
-    /**************************************************************************************************************************************/
     /*** State Setters                                                                                                                  ***/
     /**************************************************************************************************************************************/
+
+    // TODO: Revert on failed `uint` casts.
 
     function __setBorrower(address borrower_) external {
         borrower = borrower_;
@@ -62,15 +52,19 @@ contract MapleLoanHarness is MapleLoan {
     }
 
     function __setGracePeriod(uint256 gracePeriod_) external {
-        gracePeriod = uint32(gracePeriod_);  // TODO: Decide if safe casting a concern for testing?
+        gracePeriod = uint32(gracePeriod_);
+    }
+
+    function __setImplementation(address implementation_) external {
+        _setImplementation(implementation_);
     }
 
     function __setNoticePeriod(uint256 noticePeriod_) external {
-        noticePeriod = uint32(noticePeriod_);  // TODO: Decide if safe casting a concern for testing?
+        noticePeriod = uint32(noticePeriod_);
     }
 
     function __setPaymentInterval(uint256 paymentInterval_) external {
-        paymentInterval = uint32(paymentInterval_);  // TODO: Decide if safe casting a concern for testing?
+        paymentInterval = uint32(paymentInterval_);
     }
 
     function __setInterestRate(uint256 interestRate_) external {
@@ -85,8 +79,28 @@ contract MapleLoanHarness is MapleLoan {
         lateInterestPremium = lateInterestPremium_;
     }
 
+    function __setPendingBorrower(address pendingBorrower_) external {
+        pendingBorrower = pendingBorrower_;
+    }
+
+    function __setPendingLender(address pendingLender_) external {
+        pendingLender = pendingLender_;
+    }
+
     function __setPrincipal(uint256 principal_) external {
         principal = principal_;
+    }
+
+    /**************************************************************************************************************************************/
+    /*** View Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
+
+    function __dueDates() external view returns (uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_) {
+        return _dueDates();
+    }
+
+    function __defaultDates() external view returns (uint40 callDefaultDate_, uint40 impairedDefaultDate_, uint40 normalDefaultDate_) {
+        return _defaultDates();
     }
 
     /**************************************************************************************************************************************/

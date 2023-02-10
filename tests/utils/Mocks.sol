@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
+import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
+
 contract MapleGlobalsMock {
 
     address public governor;
@@ -87,6 +89,17 @@ contract MockFactory {
         ( bool success, ) = msg.sender.call(abi.encodeWithSignature("setImplementation(address)", implementation));
 
         require(success);
+    }
+
+}
+
+contract MockRevertingERC20 is MockERC20 {
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) MockERC20(name_, symbol_, decimals_) {}
+
+    function transfer(address, uint256) public override pure returns (bool success_) {
+        success_;
+        require(false);
     }
 
 }

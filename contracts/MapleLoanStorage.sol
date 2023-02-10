@@ -13,9 +13,9 @@ abstract contract MapleLoanStorage is IMapleLoanStorage {
     uint32 public override paymentInterval;  // The number of seconds between payments.
 
     uint40 public override dateCalled;
-    uint40 public override datePaid;
     uint40 public override dateFunded;
     uint40 public override dateImpaired;
+    uint40 public override datePaid;
 
     uint256 public override calledPrincipal;  // The amount of principal yet to be returned to satisfy the loan call.
     uint256 public override principal;        // The amount of principal yet to be paid down.

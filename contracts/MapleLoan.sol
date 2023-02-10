@@ -228,21 +228,19 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function repossess(address destination_) external override returns (uint256 fundsRepossessed_) {
         require(msg.sender == lender, "ML:R:NOT_LENDER");
-
-        require(isInDefault(), "ML:R:NOT_IN_DEFAULT");
+        require(isInDefault(),        "ML:R:NOT_IN_DEFAULT");
 
         _clearLoanAccounting();
 
         address fundsAsset_ = fundsAsset;
 
-        emit Repossessed(fundsRepossessed_, destination_);
+        emit Repossessed(
+            fundsRepossessed_ = IERC20(fundsAsset_).balanceOf(address(this)),
+            destination_
+        );
 
         // Either there are no funds to repossess, or the transfer of the funds succeeds.
-        require(
-            IERC20(fundsAsset_).balanceOf(address(this)) == uint256(0) ||
-            ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_),
-            "ML:R:F_TRANSFER_FAILED"
-        );
+        require(fundsRepossessed_ == 0 || ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_), "ML:R:TRANSFER_FAILED");
     }
 
     function setPendingLender(address pendingLender_) external override {
