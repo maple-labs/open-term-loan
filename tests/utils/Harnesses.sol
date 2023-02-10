@@ -37,16 +37,16 @@ contract MapleLoanHarness is MapleLoan {
         dateCalled = uint40(dateCalled_);
     }
 
-    function __setDatePaid(uint256 datePaid_) external {
-        datePaid = uint40(datePaid_);
-    }
-
     function __setDateFunded(uint256 dateFunded_) external {
         dateFunded = uint40(dateFunded_);
     }
 
     function __setDateImpaired(uint256 dateImpaired_) external {
         dateImpaired = uint40(dateImpaired_);
+    }
+
+    function __setDatePaid(uint256 datePaid_) external {
+        datePaid = uint40(datePaid_);
     }
 
     function __setLender(address lender_) external {

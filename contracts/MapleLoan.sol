@@ -302,15 +302,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function paymentBreakdown() public view override returns (uint256 interest_, uint256 lateInterest_) {
-        uint40 paymentDueDate_ = paymentDueDate();
+        uint40 paymentDueDate_   = paymentDueDate();
+        uint40 paidOrFundedDate_ = _maxDate(datePaid, dateFunded);
+
+        bool isLate_ = block.timestamp > paymentDueDate_;
 
         ( interest_, lateInterest_ ) = _getPaymentBreakdown(
             principal,
             interestRate,
             lateInterestPremium,
             lateFeeRate,
-            uint32(block.timestamp - datePaid),                                                // "Current" interval.
-            uint32(block.timestamp > paymentDueDate_ ? block.timestamp - paymentDueDate_ : 0)  // Late interval.
+            uint32(isLate_ ? paymentDueDate_ - paidOrFundedDate_ : block.timestamp - paidOrFundedDate_),  // "Current" interval
+            uint32(isLate_ ? block.timestamp - paymentDueDate_   : 0)                                     // Late interval
         );
     }
 

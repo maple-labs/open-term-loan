@@ -51,4 +51,25 @@ contract TestBase is Test {
         loan_ = address(loan);
     }
 
+    function _createFixture(
+        uint256 principal,
+        uint256 paymentInterval,
+        uint256 paymentDate,
+        uint256[3] memory rates
+    )
+        internal returns (MapleLoanHarness loan_)
+    {
+        loan_ = new MapleLoanHarness();
+
+        loan_.__setDateFunded(block.timestamp);
+        loan_.__setPrincipal(principal);
+        loan_.__setPaymentInterval(paymentInterval);
+
+        loan_.__setInterestRate(rates[0]);
+        loan_.__setLateFeeRate(rates[1]);
+        loan_.__setLateInterestPremium(rates[2]);
+
+        vm.warp(block.timestamp + paymentDate);
+    }
+
 }
