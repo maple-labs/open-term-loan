@@ -2,7 +2,7 @@
 pragma solidity 0.8.7;
 
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
-import { Test }      from "../../modules/forge-std/src/Test.sol";
+import { console2, Test }      from "../../modules/forge-std/src/Test.sol";
 
 import { MapleLoanHarness }              from "./Harnesses.sol";
 import { MapleGlobalsMock, MockFactory } from "./Mocks.sol";

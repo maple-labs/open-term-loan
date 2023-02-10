@@ -17,11 +17,11 @@ contract MapleLoanHarness is MapleLoan {
     /*** View Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function __dueDates() external view returns (uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_) {
+    function __dueDates() external view returns (uint256 callDueDate_, uint256 impairedDueDate_, uint256 normalDueDate_) {
         return _dueDates();
     }
 
-    function __defaultDates() external view returns (uint40 callDefaultDate_, uint40 impairedDefaultDate_, uint40 normalDefaultDate_) {
+    function __defaultDates() external view returns (uint256 callDefaultDate_, uint256 impairedDefaultDate_, uint256 normalDefaultDate_) {
         return _defaultDates();
     }
 
@@ -31,6 +31,22 @@ contract MapleLoanHarness is MapleLoan {
 
     function __setBorrower(address borrower_) external {
         borrower = borrower_;
+    }
+
+    function __setDateCalled(uint256 dateCalled_) external {
+        dateCalled = uint40(dateCalled_);
+    }
+
+    function __setDatePaid(uint256 datePaid_) external {
+        datePaid = uint40(datePaid_);
+    }
+
+    function __setDateFunded(uint256 dateFunded_) external {
+        dateFunded = uint40(dateFunded_);
+    }
+
+    function __setDateImpaired(uint256 dateImpaired_) external {
+        dateImpaired = uint40(dateImpaired_);
     }
 
     function __setLender(address lender_) external {
@@ -93,5 +109,5 @@ contract MapleLoanHarness is MapleLoan {
     function __getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) external pure returns (uint256 proRatedAmount_) {
         return _getProRatedAmount(amount_, rate_, interval_);
     }
-    
+
 }
