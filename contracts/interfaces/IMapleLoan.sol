@@ -31,16 +31,9 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function call(uint256 principalToReturn_) external returns (uint40 paymentDueDate_);
 
     /**
-     *  @dev   Draw down funds from the loan.
-     *  @param amount_      The amount to draw down.
-     *  @param destination_ The address to send the funds.
-     */
-    function drawdown(uint256 amount_, address destination_) external;
-
-    /**
      *  @dev    Lend funds to the loan/borrower.
      *  @return fundsLent_      The amount funded.
-     *  @return paymentDueDate_ The next payment due date.
+     *  @return paymentDueDate_ The due date of the first payment.
      */
     function fund() external returns (uint256 fundsLent_, uint40 paymentDueDate_);
 

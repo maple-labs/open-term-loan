@@ -82,6 +82,8 @@ contract RepossessTests is TestBase {
     }
 
     function test_repossess_transferFail() external {
+        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+
         asset = address(new MockRevertingERC20("Asset", "A", 6));
 
         loan.__setFundsAsset(asset);
@@ -103,6 +105,8 @@ contract RepossessTests is TestBase {
     }
 
     function test_repossess_noFunds() external {
+        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+
         vm.prank(lender);
         loan.repossess(lender);
 
@@ -128,6 +132,8 @@ contract RepossessTests is TestBase {
     }
 
     function test_repossess_availableFunds() external {
+        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+
         deal(asset, address(loan), 10_000e6);
 
         assertEq(MockERC20(asset).balanceOf(borrower),      0);

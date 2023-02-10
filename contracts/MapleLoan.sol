@@ -86,14 +86,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(borrower = msg.sender);
     }
 
-    function drawdown(uint256 amount_, address destination_) external override whenProtocolNotPaused {
-        require(msg.sender == borrower, "ML:D:NOT_BORROWER");
-
-        emit FundsDrawnDown(amount_, destination_);
-
-        require(ERC20Helper.transfer(fundsAsset, destination_, amount_), "ML:D:TRANSFER_FAILED");
-    }
-
     function makePayment(uint256 principalToReturn_)
         external override whenProtocolNotPaused returns (uint256 interest_, uint256 lateInterest_) {
         // If the loan is called, the principal being returned must be greater than the portion called.
@@ -162,6 +154,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(lender = msg.sender);
     }
 
+    // TODO: Should revert if the loan has not yet been funded.
     function call(uint256 principalToReturn_) external override returns (uint40 paymentDueDate_) {
         require(msg.sender == lender,            "ML:C:NOT_LENDER");
         require(principalToReturn_ <= principal, "ML:C:INSUFFICIENT_PRINCIPAL");
@@ -177,20 +170,20 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function fund() external override returns (uint256 fundsLent_, uint40 paymentDefaultDate_) {
-        address lender_ = lender;
+    // TODO: Solve for cases where loan is/isn't funded, and closed.
+    function fund() external override returns (uint256 fundsLent_, uint40 paymentDueDate_) {
+        require(msg.sender == lender, "ML:F:NOT_LENDER");
+        require(dateFunded == 0,      "ML:F:LOAN_ACTIVE");
 
-        require(msg.sender == lender_,   "ML:F:NOT_LENDER");
-        require(dateFunded == uint40(0), "ML:F:LOAN_ACTIVE");
+        dateFunded = uint40(block.timestamp);
 
         emit Funded(
-            lender_,
-            fundsLent_          = principal,
-            paymentDefaultDate_ = paymentDueDate(),
+            fundsLent_      = principal,
+            paymentDueDate_ = paymentDueDate(),
             defaultDate()
         );
 
-        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, address(this), fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
+        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, borrower, fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
     }
 
     function impair() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {

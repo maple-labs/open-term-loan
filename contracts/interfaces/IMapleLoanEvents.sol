@@ -19,12 +19,11 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   The loan was funded.
-     *  @param lender_         The address of the lender.
      *  @param amount_         The amount funded.
      *  @param paymentDueDate_ The due date of the next payment.
      *  @param defaultDate_    The date the loan will be in default.
      */
-    event Funded(address indexed lender_, uint256 amount_, uint40 paymentDueDate_, uint40 defaultDate_);
+    event Funded(uint256 amount_, uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev   Funds were drawn.
