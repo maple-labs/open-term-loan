@@ -1,40 +1,22 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 
 import { MapleLoanHarness } from "./utils/Harnesses.sol";
-import { TestBase }         from "./utils/TestBase.sol";
+import { MockERC20 }        from "./utils/Mocks.sol";
+import { Utils }            from "./utils/Utils.sol";
 
-contract FundTests is TestBase {
+contract FundTests is Test, Utils {
 
-    address borrower;
-    address lender;
+    event Funded(uint256 amount, uint40 paymentDueDate, uint40 defaultDate);
 
-    MapleLoanHarness loan;
+    address lender = makeAddr("lender");
 
-    function setUp() public override {
-        super.setUp();
+    MapleLoanHarness loan = new MapleLoanHarness();
 
-        borrower = makeAddr("borrower");
-        lender   = makeAddr("lender");
-
-        asset = address(new MockERC20("Asset", "A", 6));
-        loan  = MapleLoanHarness(createLoan({
-            borrower:    borrower,
-            lender:      lender,
-            fundsAsset:  address(asset),
-            principal:   100_000e6,
-            termDetails: [uint32(5 days), uint32(5 days), uint32(30 days)],
-            rates:       [uint256(0.1e6), uint256(0), uint256(0)]
-        }));
-
-        deal(asset, lender, 100_000e6);
-
-        vm.prank(lender);
-        MockERC20(asset).approve(address(loan), type(uint256).max);
-
-        vm.warp(start);
+    function setUp() public {
+        loan.__setLender(lender);
     }
 
     function test_fund_notLender() external {
@@ -43,64 +25,74 @@ contract FundTests is TestBase {
     }
 
     function test_fund_loanActive() external {
-        loan.__setDateFunded(start);
+        loan.__setDateFunded(block.timestamp);
 
         vm.prank(lender);
         vm.expectRevert("ML:F:LOAN_ACTIVE");
         loan.fund();
     }
 
-    function test_fund_insufficientBalanceBoundary() external {
-        deal(asset, lender, 100_000e6 - 1);
-
+    function test_fund_loanClosed() external {
         vm.prank(lender);
-        vm.expectRevert("ML:F:TRANSFER_FROM_FAILED");
-        loan.fund();
-
-        deal(asset, lender, 100_000e6);
-
-        vm.prank(lender);
+        vm.expectRevert("ML:F:LOAN_CLOSED");
         loan.fund();
     }
 
-    function test_fund_insufficientApprovalBoundary() external {
-        vm.prank(lender);
-        MockERC20(asset).approve(address(loan), 100_000e6 - 1);
+    function test_fund_revertingTransfer() external {
+        address asset     = address(new MockERC20("Asset", "A", 6));
+        uint256 principal = 100_0000e6;
 
+        loan.__setFundsAsset(asset);
+        loan.__setPrincipal(principal);
+
+        deal(asset, lender, principal);
+
+        // Call without approval should cause revert of transfer.
         vm.prank(lender);
         vm.expectRevert("ML:F:TRANSFER_FROM_FAILED");
         loan.fund();
-
-        vm.prank(lender);
-        MockERC20(asset).approve(address(loan), 100_000e6);
-
-        vm.prank(lender);
-        loan.fund();
     }
 
-    function test_fund_success() external {
-        deal(asset, lender, 150_000e6);
+    function testFuzz_fund_success() external {
+        address asset           = address(new MockERC20("Asset", "A", 6));
+        address borrower        = makeAddr("borrower");
+        uint256 extra           = 50_000_000e6;
+        uint256 gracePeriod     = 5 days;
+        uint256 paymentInterval = 30 days;
+        uint256 principal       = 100_000_000e6;
 
-        assertEq(MockERC20(asset).balanceOf(borrower),      0);
-        assertEq(MockERC20(asset).balanceOf(lender),        150_000e6);
-        assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
+        loan.__setBorrower(borrower);
+        loan.__setFundsAsset(asset);
+        loan.__setPrincipal(principal);
+        loan.__setPaymentInterval(paymentInterval);
+        loan.__setGracePeriod(gracePeriod);
 
-        assertEq(loan.dateFunded(), 0);
+        deal(asset, lender, principal + extra);
 
         vm.prank(lender);
         MockERC20(asset).approve(address(loan), type(uint256).max);
 
-        vm.prank(lender);
-        ( uint256 fundsLent_, uint40 paymentDueDate_ ) = loan.fund();
+        uint256 expectedPaymentDueDate = block.timestamp + paymentInterval;
+        uint256 expectedDefaultDate    = expectedPaymentDueDate + gracePeriod;
 
-        assertEq(fundsLent_,      100_000e6);
-        assertEq(paymentDueDate_, start + 30 days);
-
-        assertEq(MockERC20(asset).balanceOf(borrower),      100_000e6);
-        assertEq(MockERC20(asset).balanceOf(lender),        50_000e6);
+        assertEq(MockERC20(asset).balanceOf(borrower),      0);
+        assertEq(MockERC20(asset).balanceOf(lender),        principal + extra);
         assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
 
-        assertEq(loan.dateFunded(), start);
+        vm.expectEmit(true, true, true, true);
+        emit Funded(principal, uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+        vm.prank(lender);
+        ( uint256 fundsLent, uint40 paymentDueDate, uint40 defaultDate ) = loan.fund();
+
+        assertEq(fundsLent,      principal);
+        assertEq(paymentDueDate, uint40(expectedPaymentDueDate));
+        assertEq(defaultDate,    uint40(expectedDefaultDate));
+
+        assertEq(loan.dateFunded(), block.timestamp);
+
+        assertEq(MockERC20(asset).balanceOf(borrower),      principal);
+        assertEq(MockERC20(asset).balanceOf(lender),        extra);
+        assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
     }
 
 }

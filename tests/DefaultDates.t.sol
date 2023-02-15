@@ -1,330 +1,106 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MapleLoanHarness }   from "./utils/Harnesses.sol";
-import { console2, TestBase } from "./utils/TestBase.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 
-contract DefaultDatesTests is TestBase {
+import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
 
-    address borrower;
-    address lender;
+contract DefaultDatesTests is Test, Utils {
 
-    MapleLoanHarness loan;
+    MapleLoanHarness loan = new MapleLoanHarness();
 
-    function setUp() public override {
-        super.setUp();
+    function getConstrictedParameters(
+        uint256 gracePeriod,
+        uint256 noticePeriod,
+        uint256 paymentInterval,
+        uint256 dateFunded,
+        uint256 dateCalled,
+        uint256 dateImpaired,
+        uint256 datePaid
+    )
+        internal view
+        returns (
+            uint256 constrictedGracePeriod,
+            uint256 constrictedNoticePeriod,
+            uint256 constrictedPaymentInterval,
+            uint256 constrictedDateFunded,
+            uint256 constrictedDateCalled,
+            uint256 constrictedDateImpaired,
+            uint256 constrictedDatePaid
+        )
+    {
+        // Constrict and set relevant periods to reasonable values.
+        gracePeriod     = bound(gracePeriod,     0, 365 days);
+        noticePeriod    = bound(noticePeriod,    0, 365 days);
+        paymentInterval = bound(paymentInterval, 0, 365 days);
 
-        borrower = makeAddr("borrower");
-        lender   = makeAddr("lender");
+        dateFunded = bound(dateFunded, block.timestamp - 365 days, block.timestamp);  // Any time in last 365 days.
 
-        loan = MapleLoanHarness(createLoan({
-            borrower:    borrower,
-            lender:      lender,
-            fundsAsset:  asset,
-            principal:   100_000e6,
-            termDetails: [uint32(5 days), uint32(3 days), uint32(30 days)],
-            rates:       [uint256(0.1e6), uint256(0), uint256(0)]
-        }));
+        // Constrict and set dates to any time between `dateFunded` and 365 days later, if at all.
+        // NOTE: Only possible that `dateCalled > `datePaid` and `dateImpaired > `datePaid`.
+        datePaid     = boundWithEqualChanceOfZero(datePaid,     dateFunded, dateFunded + 365 days);
+        dateCalled   = boundWithEqualChanceOfZero(dateCalled,   datePaid,   dateFunded + 365 days);
+        dateImpaired = boundWithEqualChanceOfZero(dateImpaired, datePaid,   dateFunded + 365 days);
 
-        assertEq(loan.dateFunded(),   0);
-        assertEq(loan.dateCalled(),   0);
-        assertEq(loan.dateImpaired(), 0);
-        assertEq(loan.datePaid(),     0);
+        // Doing these sets here makes the above read better.
+        constrictedGracePeriod     = gracePeriod;
+        constrictedNoticePeriod    = noticePeriod;
+        constrictedPaymentInterval = paymentInterval;
+        constrictedDateFunded      = dateFunded;
+        constrictedDateCalled      = dateCalled;
+        constrictedDateImpaired    = dateImpaired;
+        constrictedDatePaid        = datePaid;
+    }
 
-        // Fund loan by setting funding date
-        loan.__setDateFunded(start);
+    function testFuzz_defaultDates(
+        uint256 gracePeriod,
+        uint256 noticePeriod,
+        uint256 paymentInterval,
+        uint256 dateFunded,
+        uint256 dateCalled,
+        uint256 dateImpaired,
+        uint256 datePaid
+    ) external {
+        (
+            gracePeriod,
+            noticePeriod,
+            paymentInterval,
+            dateFunded,
+            dateCalled,
+            dateImpaired,
+            datePaid
+        ) = getConstrictedParameters(gracePeriod, noticePeriod, paymentInterval, dateFunded, dateCalled, dateImpaired, datePaid);
 
-        assertEq(loan.dateFunded(), start);
+        loan.__setDateFunded(dateFunded);
+        loan.__setDateCalled(dateCalled);
+        loan.__setDateImpaired(dateImpaired);
+        loan.__setDatePaid(datePaid);
+        loan.__setGracePeriod(gracePeriod);
+        loan.__setNoticePeriod(noticePeriod);
+        loan.__setPaymentInterval(paymentInterval);
 
         ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
 
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
+        uint256 dateFundedOrPaid = maxIgnoreZero(dateFunded, datePaid);
 
-        assertEq(loan.defaultDate(), start + 30 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
+        assertEq(callDefaultDate,     callDefaultDate == 0     ? 0 : dateCalled + noticePeriod);
+        assertEq(impairedDefaultDate, impairedDefaultDate == 0 ? 0 : dateImpaired + gracePeriod);
+        assertEq(normalDefaultDate,   dateFundedOrPaid == 0    ? 0 : dateFundedOrPaid + paymentInterval + gracePeriod);
+
+        assertEq(loan.defaultDate(), minIgnoreZero(callDefaultDate, impairedDefaultDate, normalDefaultDate));  // TODO: loan.__minDate
     }
 
-    // NOTE: The default date should be the smallest timestamp between call, impairment and paymentDueDate including notice/grace periods.
+    // TODO: test_defaultDates_dateFunded
 
-    function test_defaultDates_loanNotFunded() external {
-        // Mock loan not being funded
-        loan.__setDateFunded(0);
+    // TODO: test_defaultDates_dateFundedAndDatePaid
 
-        vm.expectRevert("ML:DD:INACTIVE");
-        loan.__defaultDates();
-    }
+    // TODO: test_defaultDates_dateFundedAndDateCalled
 
-    function test_defaultDates_loanFundedNoPayments_impair() external {
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 15 days);
+    // TODO: test_defaultDates_dateFundedAndDateImpaired
 
-        assertEq(loan.dateImpaired(), start + 15 days);
+    // TODO: test_defaultDates_dateFundedAndDateCalledThenDateImpaired
 
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, start + 15 days + 5 days);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        // The default date should be the dateImpaired + gracePeriod
-        assertEq(loan.defaultDate(), start + 15 days + 5 days);
-        assertEq(loan.defaultDate(), impairedDefaultDate);
-    }
-
-    function test_defaultDates_loanFundedNoPayments_call() external {
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 15 days);
-
-        assertEq(loan.dateCalled(), start + 15 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 15 days + 3 days);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod
-        assertEq(loan.defaultDate(), start + 15 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
-
-    // TODO: Consider Fuzz test for this scenario
-    function test_defaultDates_loanFundedNoPayments_impairThenCall() external {
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 15 days);
-
-        assertEq(loan.dateImpaired(), start + 15 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, start + 15 days + 5 days);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 15 days + 5 days);
-        assertEq(loan.defaultDate(), impairedDefaultDate);
-
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 16 days);
-
-        assertEq(loan.dateCalled(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 16 days + 3 days);
-        assertEq(impairedDefaultDate, start + 15 days + 5 days);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod as its smaller than the dateImpaired + gracePeriod
-        assertEq(loan.defaultDate(), start + 16 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
-
-    function test_defaultDates_loanFundedNoPayments_callThenImpair() external {
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 15 days);
-
-        assertEq(loan.dateCalled(), start + 15 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 15 days + 3 days);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 15 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 16 days);
-
-        assertEq(loan.dateImpaired(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 15 days + 3 days);
-        assertEq(impairedDefaultDate, start + 16 days + 5 days);
-        assertEq(normalDefaultDate,   start + 30 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod as its smaller than the dateImpaired + gracePeriod
-        assertEq(loan.defaultDate(), start + 15 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
-
-    function test_defaultDates_firstPaymentMade() external {
-        // First payment made by setting datePaid
-        loan.__setDatePaid(start + 15 days);
-
-        assertEq(loan.datePaid(),       start + 15 days);
-        assertEq(loan.paymentDueDate(), start + 15 days + 30 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        // The default date should be the paymentDueDate + gracePeriod
-        assertEq(loan.defaultDate(), start + 45 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
-    }
-
-    function test_defaultDates_firstPaymentMade_impair() external {
-        // First payment made by setting datePaid
-        loan.__setDatePaid(start + 15 days);
-
-        assertEq(loan.datePaid(),       start + 15 days);
-        assertEq(loan.paymentDueDate(), start + 15 days + 30 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 45 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
-
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 16 days);
-
-        assertEq(loan.dateImpaired(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, start + 16 days + 5 days);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        // The default date should be the dateImpaired + gracePeriod
-        assertEq(loan.defaultDate(), start + 16 days + 5 days);
-        assertEq(loan.defaultDate(), impairedDefaultDate);
-    }
-
-    function test_defaultDates_firstPaymentMade_call() external {
-        // First payment made by setting datePaid
-        loan.__setDatePaid(start + 15 days);
-
-        assertEq(loan.datePaid(),       start + 15 days);
-        assertEq(loan.paymentDueDate(), start + 15 days + 30 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 45 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
-
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 16 days);
-
-        assertEq(loan.dateCalled(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 16 days + 3 days);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod
-        assertEq(loan.defaultDate(), start + 16 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
-
-    function test_defaultDates_firstPaymentMade_impairThenCall() external {
-        // First payment made by setting datePaid
-        loan.__setDatePaid(start + 15 days);
-
-        assertEq(loan.datePaid(),       start + 15 days);
-        assertEq(loan.paymentDueDate(), start + 15 days + 30 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 45 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
-
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 16 days);
-
-        assertEq(loan.dateImpaired(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, start + 16 days + 5 days);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 16 days + 5 days);
-        assertEq(loan.defaultDate(), impairedDefaultDate);
-
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 17 days);
-
-        assertEq(loan.dateCalled(), start + 17 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 17 days + 3 days);
-        assertEq(impairedDefaultDate, start + 16 days + 5 days);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod
-        assertEq(loan.defaultDate(), start + 17 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
-
-    function test_defaultDates_firstPaymentMade_callThenImpair() external {
-        // First payment made by setting datePaid
-        loan.__setDatePaid(start + 15 days);
-
-        assertEq(loan.datePaid(),       start + 15 days);
-        assertEq(loan.paymentDueDate(), start + 15 days + 30 days);
-
-        ( uint256 callDefaultDate, uint256 impairedDefaultDate, uint256 normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     0);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 45 days + 5 days);
-        assertEq(loan.defaultDate(), normalDefaultDate);
-
-        // Call loan by setting dateCalled
-        loan.__setDateCalled(start + 16 days);
-
-        assertEq(loan.dateCalled(), start + 16 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 16 days + 3 days);
-        assertEq(impairedDefaultDate, 0);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        assertEq(loan.defaultDate(), start + 16 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-
-        // Impair loan by setting dateImpaired
-        loan.__setDateImpaired(start + 17 days);
-
-        assertEq(loan.dateImpaired(), start + 17 days);
-
-        ( callDefaultDate, impairedDefaultDate, normalDefaultDate ) = loan.__defaultDates();
-
-        assertEq(callDefaultDate,     start + 16 days + 3 days);
-        assertEq(impairedDefaultDate, start + 17 days + 5 days);
-        assertEq(normalDefaultDate,   start + 45 days + 5 days);
-
-        // The default date should be the dateCalled + noticePeriod
-        assertEq(loan.defaultDate(), start + 16 days + 3 days);
-        assertEq(loan.defaultDate(), callDefaultDate);
-    }
+    // TODO: test_defaultDates_dateFundedAndDateImpairedThenDateCalled
 
 }

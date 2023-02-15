@@ -68,7 +68,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         internal
     {
         // Principal requested needs to be non-zero (see `_getCollateralRequiredFor` math).
-	    require(principalRequested_ > uint256(0), "MLI:I:INVALID_PRINCIPAL");
+	    require(principalRequested_ != 0, "MLI:I:INVALID_PRINCIPAL");
 
         // Payment interval and notice period to be non-zero.
         require(termDetails_[1] > 0, "MLI:I:INVALID_NOTICE_PERIOD");
@@ -88,6 +88,8 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),            "MLI:I:INVALID_INSTANCE");
 
         fundsAsset = fundsAsset_;
+
+        principal = principalRequested_;
 
         gracePeriod     = termDetails_[0];
         noticePeriod    = termDetails_[1];

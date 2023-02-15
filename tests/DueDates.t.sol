@@ -1,130 +1,100 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }   from "./utils/Harnesses.sol";
-import { console2, TestBase } from "./utils/TestBase.sol";
+import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
 
-contract DueDatesTests is TestBase {
+contract DueDatesTests is Test, Utils {
 
-    address borrower;
-    address lender;
+    MapleLoanHarness loan = new MapleLoanHarness();
 
-    MapleLoanHarness loan;
+    function getConstrictedParameters(
+        uint256 noticePeriod,
+        uint256 paymentInterval,
+        uint256 dateFunded,
+        uint256 dateCalled,
+        uint256 dateImpaired,
+        uint256 datePaid
+    )
+        internal view
+        returns (
+            uint256 constrictedNoticePeriod,
+            uint256 constrictedPaymentInterval,
+            uint256 constrictedDateFunded,
+            uint256 constrictedDateCalled,
+            uint256 constrictedDateImpaired,
+            uint256 constrictedDatePaid
+        )
+    {
+        // Constrict and set relevant periods to reasonable values.
+        noticePeriod    = bound(noticePeriod,    0, 365 days);
+        paymentInterval = bound(paymentInterval, 0, 365 days);
 
-    function setUp() public override {
-        super.setUp();
+        dateFunded = bound(dateFunded, block.timestamp - 365 days, block.timestamp);  // Any time in last 365 days.
 
-        borrower = makeAddr("borrower");
-        lender   = makeAddr("lender");
+        // Constrict and set dates to any time between `dateFunded` and 365 days later, if at all.
+        // NOTE: Only possible that `dateCalled > `datePaid` and `dateImpaired > `datePaid`.
+        datePaid     = boundWithEqualChanceOfZero(datePaid,     dateFunded, dateFunded + 365 days);
+        dateCalled   = boundWithEqualChanceOfZero(dateCalled,   datePaid,   dateFunded + 365 days);
+        dateImpaired = boundWithEqualChanceOfZero(dateImpaired, datePaid,   dateFunded + 365 days);
 
-        loan = MapleLoanHarness(createLoan({
-            borrower:    borrower,
-            lender:      lender,
-            fundsAsset:  asset,
-            principal:   100_000e6,
-            termDetails: [uint32(5 days), uint32(3 days), uint32(30 days)],
-            rates:       [uint256(0.1e6), uint256(0), uint256(0)]
-        }));
+        // Doing these sets here makes the above read better.
+        constrictedNoticePeriod    = noticePeriod;
+        constrictedPaymentInterval = paymentInterval;
+        constrictedDateFunded      = dateFunded;
+        constrictedDateCalled      = dateCalled;
+        constrictedDateImpaired    = dateImpaired;
+        constrictedDatePaid        = datePaid;
     }
 
-    function test_dueDates_loanNotFunded() external {
-        vm.expectRevert("ML:DD:INACTIVE");
-        loan.__dueDates();
-    }
+    function testFuzz_dueDates(
+        uint256 noticePeriod,
+        uint256 paymentInterval,
+        uint256 dateFunded,
+        uint256 dateCalled,
+        uint256 dateImpaired,
+        uint256 datePaid
+    ) external {
+        (
+            noticePeriod,
+            paymentInterval,
+            dateFunded,
+            dateCalled,
+            dateImpaired,
+            datePaid
+        ) = getConstrictedParameters(noticePeriod, paymentInterval, dateFunded, dateCalled, dateImpaired, datePaid);
 
-    function test_dueDates_loanFunded() external {
-        loan.__setDateFunded(start);
+        loan.__setDateFunded(dateFunded);
+        loan.__setDateCalled(dateCalled);
+        loan.__setDateImpaired(dateImpaired);
+        loan.__setDatePaid(datePaid);
+        loan.__setGracePeriod(365 days);             // Set this to ensure gracePeriod is not taken into account in the contract.
+        loan.__setNoticePeriod(noticePeriod);
+        loan.__setPaymentInterval(paymentInterval);
 
         ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
 
-        assertEq(callDueDate,     0);
-        assertEq(impairedDueDate, 0);
-        assertEq(normalDueDate,   start + 30 days);
+        uint256 dateFundedOrPaid = maxIgnoreZero(dateFunded, datePaid);
 
-        assertEq(loan.paymentDueDate(), normalDueDate);
+        assertEq(callDueDate,     callDueDate == 0      ? 0 : dateCalled + noticePeriod);
+        assertEq(impairedDueDate, impairedDueDate == 0  ? 0 : dateImpaired);
+        assertEq(normalDueDate,   dateFundedOrPaid == 0 ? 0 : dateFundedOrPaid + paymentInterval);
+
+        assertEq(loan.paymentDueDate(), minIgnoreZero(callDueDate, impairedDueDate, normalDueDate));  // TODO: loan.__minDate
     }
 
-    function test_dueDates_paymentMade() external {
-        loan.__setDateFunded(start);
-        loan.__setDatePaid(start + 15 days);
+    // TODO: test_dueDates_dateFunded
 
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
+    // TODO: test_dueDates_dateFundedAndDatePaid
 
-        assertEq(callDueDate,     0);
-        assertEq(impairedDueDate, 0);
-        assertEq(normalDueDate,   start + 15 days + 30 days);
+    // TODO: test_dueDates_dateFundedAndDateCalled
 
-        assertEq(loan.paymentDueDate(), normalDueDate);
-    }
+    // TODO: test_dueDates_dateFundedAndDateImpaired
 
-    function test_dueDates_loanCalled() external {
-        loan.__setDateFunded(start);
-        loan.__setDateCalled(start + 15 days);
+    // TODO: test_dueDates_dateFundedAndDateCalledThenDateImpaired
 
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
-
-        assertEq(callDueDate,     start + 15 days + 3 days);
-        assertEq(impairedDueDate, 0);
-        assertEq(normalDueDate,   start + 30 days);
-
-        assertEq(loan.paymentDueDate(), callDueDate);
-    }
-
-    function test_dueDates_loanImpaired() external {
-        loan.__setDateFunded(start);
-        loan.__setDateImpaired(start + 15 days);
-
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
-
-        assertEq(callDueDate,     0);
-        assertEq(impairedDueDate, start + 15 days);
-        assertEq(normalDueDate,   start + 30 days);
-
-        assertEq(loan.paymentDueDate(), impairedDueDate);
-    }
-
-    function test_dueDates_loanImpairedAndCalled_impairEarliest() external {
-        loan.__setDateFunded(start);
-        loan.__setDateImpaired(start + 15 days);
-        loan.__setDateCalled(start + 16 days);
-
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
-
-        assertEq(callDueDate,     start + 16 days + 3 days);
-        assertEq(impairedDueDate, start + 15 days);
-        assertEq(normalDueDate,   start + 30 days);
-
-        assertEq(loan.paymentDueDate(), impairedDueDate);
-    }
-
-    function test_dueDates_loanImpairedAndCalled_callEarliest() external {
-        loan.__setDateFunded(start);
-        loan.__setDateImpaired(start + 19 days);
-        loan.__setDateCalled(start + 15 days);
-
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
-
-        assertEq(callDueDate,     start + 15 days + 3 days);
-        assertEq(impairedDueDate, start + 19 days);
-        assertEq(normalDueDate,   start + 30 days);
-
-        assertEq(loan.paymentDueDate(), callDueDate);
-    }
-
-    function test_dueDates_loanImpairedAndCalled_paymentEarliest() external {
-        loan.__setDateFunded(start);
-        loan.__setDateImpaired(start + 31 days);
-        loan.__setDateCalled(start + 32 days);
-
-        ( uint256 callDueDate, uint256 impairedDueDate, uint256 normalDueDate ) = loan.__dueDates();
-
-        assertEq(callDueDate,     start + 32 days + 3 days);
-        assertEq(impairedDueDate, start + 31 days);
-        assertEq(normalDueDate,   start + 30 days);
-
-        assertEq(loan.paymentDueDate(), normalDueDate);
-    }
+    // TODO: test_dueDates_dateFundedAndDateImpairedThenDateCalled
 
 }

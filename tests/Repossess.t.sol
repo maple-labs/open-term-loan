@@ -1,167 +1,142 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }   from "./utils/Harnesses.sol";
-import { MockRevertingERC20 } from "./utils/Mocks.sol";
-import { TestBase }           from "./utils/TestBase.sol";
+import { MapleLoanHarness }              from "./utils/Harnesses.sol";
+import { MockERC20, MockRevertingERC20 } from "./utils/Mocks.sol";
+import { Utils }                         from "./utils/Utils.sol";
 
-contract RepossessTests is TestBase {
+contract RepossessTests is Test, Utils {
 
-    address borrower;
-    address lender;
+    event Repossessed(uint256 fundsRepossessed, address indexed destination);
 
-    MapleLoanHarness loan;
+    address account = makeAddr("account");
+    address lender  = makeAddr("lender");
 
-    uint256 constant gracePeriod          = 5 days;
-    uint256 constant interestRate         = 0.1e6;
-    uint256 constant lateFeeRate          = 0;
-    uint256 constant laterInterestPremium = 0;
-    uint256 constant noticePeriod         = 3 days;
-    uint256 constant paymentInterval      = 30 days;
-    uint256 constant principal            = 100_000e6;
+    MapleLoanHarness loan = new MapleLoanHarness();
 
-    function setUp() public override {
-        super.setUp();
-
-        borrower = makeAddr("borrower");
-        lender   = makeAddr("lender");
-
-        loan = MapleLoanHarness(createLoan({
-            borrower:    borrower,
-            lender:      lender,
-            fundsAsset:  asset,
-            principal:   100_000e6,
-            termDetails: [uint32(gracePeriod), uint32(noticePeriod), uint32(paymentInterval)],
-            rates:       [uint256(0.1e6), uint256(0), uint256(0)]
-        }));
-
-        loan.__setDateFunded(start);
-
-        assertEq(MockERC20(asset).balanceOf(borrower),      0);
-        assertEq(MockERC20(asset).balanceOf(lender),        0);
-        assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
-
-        assertEq(loan.gracePeriod(),         gracePeriod);
-        assertEq(loan.noticePeriod(),        noticePeriod);
-        assertEq(loan.paymentInterval(),     paymentInterval);
-        assertEq(loan.dateCalled(),          0);
-        assertEq(loan.datePaid(),            0);
-        assertEq(loan.dateFunded(),          start);
-        assertEq(loan.dateImpaired(),        0);
-        assertEq(loan.calledPrincipal(),     0);
-        assertEq(loan.principal(),           principal);
-        assertEq(loan.interestRate(),        interestRate);
-        assertEq(loan.lateFeeRate(),         0);
-        assertEq(loan.lateInterestPremium(), 0);
-        assertEq(loan.borrower(),            borrower);
-        assertEq(loan.fundsAsset(),          asset);
-        assertEq(loan.lender(),              lender);
-        assertEq(loan.pendingBorrower(),     address(0));
-        assertEq(loan.pendingLender(),       address(0));
+    function setUp() public {
+        loan.__setLender(lender);
     }
 
     function test_repossess_notLender() external {
         vm.expectRevert("ML:R:NOT_LENDER");
-        loan.repossess(lender);
+        loan.repossess(account);
     }
 
-    function test_repossess_defaultDateBoundary() external {
-        // Warp to when the loan is first in default.
-        vm.warp(start + paymentInterval + gracePeriod);
+    function test_repossess_notInDefault() external {
+        loan.__setDateFunded(block.timestamp);
 
         vm.prank(lender);
         vm.expectRevert("ML:R:NOT_IN_DEFAULT");
-        loan.repossess(lender);
-
-        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
-
-        vm.prank(lender);
-        loan.repossess(lender);
+        loan.repossess(account);
     }
 
-    function test_repossess_transferFail() external {
-        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+    function test_repossess_revertingToken() external {
+        address asset = address(new MockRevertingERC20("Asset", "A", 6));
 
-        asset = address(new MockRevertingERC20("Asset", "A", 6));
-
+        loan.__setDateFunded(block.timestamp - 1);  // Results in loan being immediately in default since `paymentInterval` is 0.
         loan.__setFundsAsset(asset);
 
         deal(asset, address(loan), 1);
 
         vm.prank(lender);
         vm.expectRevert("ML:R:TRANSFER_FAILED");
-        loan.repossess(lender);
+        loan.repossess(account);
+    }
 
-        asset = address(new MockERC20("Asset", "A", 6));
+    function setAllState(address asset, address borrower, address pendingBorrower, address pendingLender) internal {
+        loan.__setGracePeriod(1);
+        loan.__setNoticePeriod(1);
+        loan.__setPaymentInterval(1);
 
+        loan.__setDateCalled(1);
+        loan.__setDatePaid(1);
+        loan.__setDateFunded(1);
+        loan.__setDateImpaired(1);
+
+        loan.__setCalledPrincipal(1);
+        loan.__setPrincipal(1);
+
+        loan.__setInterestRate(1);
+        loan.__setLateFeeRate(1);
+        loan.__setLateInterestPremium(1);
+
+        loan.__setBorrower(borrower);
         loan.__setFundsAsset(asset);
-
-        deal(asset, address(loan), 1);
-
-        vm.prank(lender);
-        loan.repossess(lender);
+        loan.__setPendingBorrower(pendingBorrower);
+        loan.__setPendingLender(pendingLender);
     }
 
-    function test_repossess_noFunds() external {
-        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+    function assertCloseLoanState(address asset, address borrower, address pendingBorrower, address pendingLender) internal {
+        assertEq(loan.gracePeriod(),     0);
+        assertEq(loan.noticePeriod(),    0);
+        assertEq(loan.paymentInterval(), 0);
 
-        vm.prank(lender);
-        loan.repossess(lender);
+        assertEq(loan.dateCalled(),   0);
+        assertEq(loan.datePaid(),     0);
+        assertEq(loan.dateFunded(),   0);
+        assertEq(loan.dateImpaired(), 0);
 
-        assertEq(MockERC20(asset).balanceOf(borrower),      0);
-        assertEq(MockERC20(asset).balanceOf(lender),        0);
-        assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
-
-        assertEq(loan.gracePeriod(),         0);
-        assertEq(loan.noticePeriod(),        0);
-        assertEq(loan.paymentInterval(),     0);
-        assertEq(loan.dateCalled(),          0);
-        assertEq(loan.datePaid(),            0);
-        assertEq(loan.dateFunded(),          0);
-        assertEq(loan.dateImpaired(),        0);
         assertEq(loan.calledPrincipal(),     0);
         assertEq(loan.principal(),           0);
+
         assertEq(loan.interestRate(),        0);
         assertEq(loan.lateFeeRate(),         0);
         assertEq(loan.lateInterestPremium(), 0);
-        assertEq(loan.borrower(),            borrower);
-        assertEq(loan.fundsAsset(),          asset);
-        assertEq(loan.lender(),              lender);
+
+        assertEq(loan.borrower(),        borrower);
+        assertEq(loan.fundsAsset(),      asset);
+        assertEq(loan.lender(),          lender);
+        assertEq(loan.pendingBorrower(), pendingBorrower);
+        assertEq(loan.pendingLender(),   pendingLender);
     }
 
-    function test_repossess_availableFunds() external {
-        vm.warp(start + paymentInterval + gracePeriod + 1 seconds);
+    function test_repossess_success() external {
+        uint256 funds = 100_000e6;
 
-        deal(asset, address(loan), 10_000e6);
+        address asset           = address(new MockERC20("Asset", "A", 6));
+        address borrower        = makeAddr("borrower");
+        address pendingBorrower = makeAddr("pendingBorrower");
+        address pendingLender   = makeAddr("pendingLender");
 
-        assertEq(MockERC20(asset).balanceOf(borrower),      0);
-        assertEq(MockERC20(asset).balanceOf(lender),        0);
-        assertEq(MockERC20(asset).balanceOf(address(loan)), 10_000e6);
+        setAllState(asset, borrower, pendingBorrower, pendingLender);
 
+        deal(asset, address(loan), funds);
+
+        assertEq(MockERC20(asset).balanceOf(account),       0);
+        assertEq(MockERC20(asset).balanceOf(address(loan)), funds);
+
+        vm.expectEmit(true, true, true, true);
+        emit Repossessed(funds, account);
         vm.prank(lender);
-        loan.repossess(lender);
+        ( uint256 fundsRepossessed ) = loan.repossess(account);
 
-        assertEq(MockERC20(asset).balanceOf(borrower),      0);
-        assertEq(MockERC20(asset).balanceOf(lender),        10_000e6);
+        assertEq(MockERC20(asset).balanceOf(account),       funds);
         assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
 
-        assertEq(loan.gracePeriod(),         0);
-        assertEq(loan.noticePeriod(),        0);
-        assertEq(loan.paymentInterval(),     0);
-        assertEq(loan.dateCalled(),          0);
-        assertEq(loan.datePaid(),            0);
-        assertEq(loan.dateFunded(),          0);
-        assertEq(loan.dateImpaired(),        0);
-        assertEq(loan.calledPrincipal(),     0);
-        assertEq(loan.principal(),           0);
-        assertEq(loan.interestRate(),        0);
-        assertEq(loan.lateFeeRate(),         0);
-        assertEq(loan.lateInterestPremium(), 0);
-        assertEq(loan.borrower(),            borrower);
-        assertEq(loan.fundsAsset(),          asset);
-        assertEq(loan.lender(),              lender);
+        assertEq(fundsRepossessed, funds);
+
+        assertCloseLoanState(asset, borrower, pendingBorrower, pendingLender);
+    }
+
+    function test_repossess_successNoTransfer() external {
+        address asset           = address(new MockERC20("Asset", "A", 6));
+        address borrower        = makeAddr("borrower");
+        address pendingBorrower = makeAddr("pendingBorrower");
+        address pendingLender   = makeAddr("pendingLender");
+
+        setAllState(asset, borrower, pendingBorrower, pendingLender);
+
+        vm.expectEmit(true, true, true, true);
+        emit Repossessed(0, account);
+        vm.prank(lender);
+        ( uint256 fundsRepossessed ) = loan.repossess(account);
+
+        assertEq(fundsRepossessed, 0);
+
+        assertCloseLoanState(asset, borrower, pendingBorrower, pendingLender);
     }
 
 }

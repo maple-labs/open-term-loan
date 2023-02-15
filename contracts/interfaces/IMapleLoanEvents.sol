@@ -20,17 +20,10 @@ interface IMapleLoanEvents {
     /**
      *  @dev   The loan was funded.
      *  @param amount_         The amount funded.
-     *  @param paymentDueDate_ The due date of the next payment.
+     *  @param paymentDueDate_ The due date of the first payment.
      *  @param defaultDate_    The date the loan will be in default.
      */
     event Funded(uint256 amount_, uint40 paymentDueDate_, uint40 defaultDate_);
-
-    /**
-     *  @dev   Funds were drawn.
-     *  @param amount_      The amount of funds drawn.
-     *  @param destination_ The recipient of the funds drawn down.
-     */
-    event FundsDrawnDown(uint256 amount_, address indexed destination_);
 
     /**
      *  @dev   Loan was initialized.
@@ -68,7 +61,7 @@ interface IMapleLoanEvents {
      *  @param paymentDueDate_    The new next payment due date.
      *  @param defaultDate_       The date the loan will be in default.
      */
-    event Called(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
+    event PrincipalCalled(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.

@@ -1,32 +1,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MockERC20 } from "../modules/erc20/contracts/test/mocks/MockERC20.sol";
+import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }   from "./utils/Harnesses.sol";
-import { console2, TestBase } from "./utils/TestBase.sol";
+import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
 
-contract RemoveImpairmentTests is TestBase {
+contract RemoveImpairmentTests is Test, Utils {
 
-    address borrower;
-    address lender;
+    event ImpairmentRemoved(uint40 paymentDueDate, uint40 defaultDate);
 
-    MapleLoanHarness loan;
+    address lender = makeAddr("lender");
 
-    function setUp() public override {
-        super.setUp();
+    MapleLoanHarness loan = new MapleLoanHarness();
 
-        borrower = makeAddr("borrower");
-        lender   = makeAddr("lender");
-
-        loan = MapleLoanHarness(createLoan({
-            borrower:    borrower,
-            lender:      lender,
-            fundsAsset:  asset,
-            principal:   100_000e6,
-            termDetails: [uint32(5 days), uint32(3 days), uint32(30 days)],
-            rates:       [uint256(0.1e6), uint256(0), uint256(0)]
-        }));
+    function setUp() public {
+        loan.__setLender(lender);
     }
 
     function test_removeImpairment_notLender() external {
@@ -35,32 +24,60 @@ contract RemoveImpairmentTests is TestBase {
     }
 
     function test_removeImpairment_notImpaired() external {
-        // Set the date to mock the loan being funded.
-        loan.__setDateFunded(start);
-
         vm.expectRevert("ML:RI:NOT_IMPAIRED");
         vm.prank(lender);
         loan.removeImpairment();
     }
 
-    function test_removeImpairment() external {
-        // Set the date to mock the loan being funded.
-        loan.__setDateFunded(start);
-        loan.__setDateImpaired(start + 10 days);
+    function testFuzz_removeImpairment_success(
+        uint256 gracePeriod,
+        uint256 noticePeriod,
+        uint256 paymentInterval,
+        uint256 dateCalled,
+        uint256 dateFunded,
+        uint256 datePaid
+    ) external {
+        uint256 dateImpaired = block.timestamp - 1 days;
 
-        assertEq(loan.dateImpaired(),   start + 10 days);
-        assertEq(loan.defaultDate(),    start + 10 days + 5 days);
-        assertEq(loan.paymentDueDate(), start + 10 days);
+        gracePeriod     = bound(gracePeriod,     0, 365 days);
+        noticePeriod    = bound(noticePeriod,    0, 365 days);
+        paymentInterval = bound(paymentInterval, 0, 365 days);
 
-        vm.warp(start + 12 days);
+        dateFunded = dateImpaired - bound(dateFunded, 1 days, 365 days);  // `dateFunded` is 1 to 365 days before impairment.
+
+        // `datePaid` is between `dateFunded` and `dateImpaired`, if at all, since it only possible that `dateImpaired > `datePaid`.
+        datePaid = boundWithEqualChanceOfZero(datePaid, dateFunded, dateImpaired);
+
+        // `dateCalled` is between `datePaid` and `dateImpaired`, if at all, since it only possible that `dateCalled > `datePaid`.
+        dateCalled = boundWithEqualChanceOfZero(dateCalled, datePaid, dateImpaired);
+
+        loan.__setGracePeriod(gracePeriod);
+        loan.__setDateCalled(dateCalled);
+        loan.__setDateFunded(dateFunded);
+        loan.__setDateImpaired(dateImpaired);
+        loan.__setDatePaid(datePaid);
+        loan.__setNoticePeriod(noticePeriod);
+        loan.__setPaymentInterval(paymentInterval);
+
+        uint256 callDate   = loan.__getCallDueDate(dateCalled, noticePeriod);
+        uint256 normalDate = loan.__getNormalDueDate(dateFunded, datePaid, paymentInterval);
+
+        uint256 expectedPaymentDueDate = minIgnoreZero(callDate, normalDate);
+
+        // Reuse dates as default dates to avoid STACK_TOO_DEEP.
+        callDate   = loan.__getCallDefaultDate(callDate);
+        normalDate = loan.__getNormalDefaultDate(normalDate, gracePeriod);
+
+        uint256 expectedDefaultDate = minIgnoreZero(callDate, normalDate);
+
+        vm.expectEmit(true, true, true, true);
+        emit ImpairmentRemoved(uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
         vm.prank(lender);
-        ( uint256 paymentDueDate, uint256 defaultDate ) = loan.removeImpairment();
+        ( uint40 paymentDueDate, uint40 defaultDate ) = loan.removeImpairment();
 
-        assertEq(loan.dateImpaired(),   0);
-        assertEq(loan.defaultDate(),    start + 30 days + 5 days);  // Goes back to original default date
-        assertEq(defaultDate,           start + 30 days + 5 days);
-        assertEq(loan.paymentDueDate(), start + 30 days);           // Goes back to original payment due date
-        assertEq(paymentDueDate,        start + 30 days);
+        assertEq(loan.dateImpaired(), 0);
+        assertEq(paymentDueDate,      uint40(expectedPaymentDueDate));
+        assertEq(defaultDate,         uint40(expectedDefaultDate));
     }
 
 }

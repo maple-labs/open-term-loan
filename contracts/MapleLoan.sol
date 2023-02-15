@@ -40,7 +40,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     uint256 internal constant HUNDRED_PERCENT = 1e18;
 
     // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
-    // * call
+    // * callPrincipal
     // * fund
     // * impair
     // * removeCall
@@ -48,7 +48,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     // * repossess
     // * setPendingLender -> Not implemented
     modifier whenProtocolNotPaused() {
-        require(!IMapleGlobalsLike(globals()).protocolPaused(), "L:PROTOCOL_PAUSED");
+        require(!IMapleGlobalsLike(globals()).protocolPaused(), "ML:PROTOCOL_PAUSED");
         _;
     }
 
@@ -89,22 +89,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function makePayment(uint256 principalToReturn_)
         external override whenProtocolNotPaused returns (uint256 interest_, uint256 lateInterest_) {
         // If the loan is called, the principal being returned must be greater than the portion called.
-        // TODO: Better error, but error codes would be better.
+        // TODO: Better error strings, but error codes would be better.
+        require(dateFunded != 0,                       "ML:MP:LOAN_INACTIVE");
+        require(principalToReturn_ <= principal,       "ML:MP:RETUNING_TOO_MUCH");
         require(principalToReturn_ >= calledPrincipal, "ML:MP:INSUFFICIENT_FOR_CALL");
 
         ( interest_, lateInterest_ ) = paymentBreakdown();
 
-        uint256 total = principalToReturn_ + interest_ + lateInterest_;
-
-        // TODO: Merge the transfers into one
-        // TODO: Cache `IERC20(fundsAsset).balanceOf(address(this))`
-
-        if (IERC20(fundsAsset).balanceOf(address(this)) < total) {
-            require(
-                ERC20Helper.transferFrom(fundsAsset, msg.sender, address(this), total - IERC20(fundsAsset).balanceOf(address(this))),
-                "ML:MP:TRANSFER_FROM_FAILED"
-            );
-        }
+        uint256 total_ = principalToReturn_ + interest_ + lateInterest_;
 
         if (principalToReturn_ == principal) {
             _clearLoanAccounting();
@@ -115,18 +107,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             delete dateImpaired;
             delete calledPrincipal;
 
-            if (principalToReturn_ != uint256(0)) {
+            datePaid = uint40(block.timestamp);
+
+            if (principalToReturn_ != 0) {
                 emit PrincipalReturned(principalToReturn_, principal -= principalToReturn_);
             }
         }
-
-        datePaid = uint40(block.timestamp);
 
         uint40 paymentDueDate_ = paymentDueDate();
 
         emit PaymentMade(lender, principalToReturn_, interest_, lateInterest_, paymentDueDate_, defaultDate());
 
-        require(ERC20Helper.transfer(fundsAsset, lender, total), "ML:MP:TRANSFER_FAILED");
+        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, lender, total_), "ML:MP:TRANSFER_FROM_FAILED");
 
         ILenderLike(lender).claim(
             principalToReturn_,
@@ -154,33 +146,32 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(lender = msg.sender);
     }
 
-    // TODO: Should revert if the loan has not yet been funded.
-    function call(uint256 principalToReturn_) external override returns (uint40 paymentDueDate_) {
-        require(msg.sender == lender,            "ML:C:NOT_LENDER");
-        require(principalToReturn_ <= principal, "ML:C:INSUFFICIENT_PRINCIPAL");
-
-        // TODO: Investigate if we should add a check for if the loan is already called.
+    function callPrincipal(uint256 principalToReturn_) external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+        require(msg.sender == lender,                                       "ML:C:NOT_LENDER");
+        require(dateFunded != 0,                                            "ML:C:LOAN_INACTIVE");
+        require(dateCalled == 0,                                            "ML:C:ALREADY_CALLED");  // TODO: necessary?
+        require(principalToReturn_ != 0 && principalToReturn_ <= principal, "ML:C:INVALID_AMOUNT");
 
         dateCalled = uint40(block.timestamp);
 
-        emit Called(
+        emit PrincipalCalled(
             calledPrincipal = principalToReturn_,
             paymentDueDate_ = paymentDueDate(),
-            defaultDate()
+            defaultDate_    = defaultDate()
         );
     }
 
-    // TODO: Solve for cases where loan is/isn't funded, and closed.
-    function fund() external override returns (uint256 fundsLent_, uint40 paymentDueDate_) {
+    function fund() external override returns (uint256 fundsLent_, uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:F:NOT_LENDER");
         require(dateFunded == 0,      "ML:F:LOAN_ACTIVE");
+        require(principal != 0,       "ML:F:LOAN_CLOSED");
 
         dateFunded = uint40(block.timestamp);
 
         emit Funded(
             fundsLent_      = principal,
             paymentDueDate_ = paymentDueDate(),
-            defaultDate()
+            defaultDate_    = defaultDate()
         );
 
         require(ERC20Helper.transferFrom(fundsAsset, msg.sender, borrower, fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
@@ -189,7 +180,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function impair() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:I:NOT_LENDER");
         require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
-        require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: Investigate if this is necessary
+        require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: necessary?
 
         dateImpaired = uint40(block.timestamp);
 
@@ -199,15 +190,16 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeCall() external override returns (uint40 paymentDueDate_) {
-        require(msg.sender == lender,    "ML:RC:NOT_LENDER");
-        require(dateCalled == uint40(0), "ML:RI:NOT_CALLED");
+    function removeCall() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+        require(msg.sender == lender, "ML:RC:NOT_LENDER");
+        require(dateCalled != 0,      "ML:RC:NOT_CALLED");
 
         delete dateCalled;
+        delete calledPrincipal;
 
         emit CallRemoved(
             paymentDueDate_ = paymentDueDate(),
-            defaultDate()
+            defaultDate_    = defaultDate()
         );
     }
 
@@ -237,11 +229,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
 
         // Either there are no funds to repossess, or the transfer of the funds succeeds.
-        require(fundsRepossessed_ == 0 || ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_), "ML:R:TRANSFER_FAILED");
+        require((fundsRepossessed_ == 0) || ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_), "ML:R:TRANSFER_FAILED");
     }
 
     function setPendingLender(address pendingLender_) external override {
         require(msg.sender == lender, "ML:SPL:NOT_LENDER");
+
         emit PendingLenderSet(pendingLender = pendingLender_);
     }
 
@@ -249,13 +242,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Miscellaneous Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
 
+    // TODO: Consider giving the governor the sole access to skim.
     function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {
-        require((msg.sender == borrower) || (msg.sender == lender), "ML:S:NOT_AUTHORIZED");
-        require(token_ != fundsAsset,                               "ML:S:FUNDS_ASSET");
+        require(msg.sender == borrower, "ML:S:NOT_BORROWER");
 
         skimmed_ = IERC20(token_).balanceOf(address(this));
 
-        require(skimmed_ > uint256(0), "ML:S:NO_TOKEN_TO_SKIM");
+        require(skimmed_ != 0, "ML:S:NO_TOKEN_TO_SKIM");
 
         emit Skimmed(token_, skimmed_, destination_);
 
@@ -269,7 +262,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function defaultDate() public view override returns (uint40 paymentDefaultDate_) {
         ( uint40 callDefaultDate_, uint40 impairedDefaultDate_, uint40 normalPaymentDueDate_ ) = _defaultDates();
 
-        paymentDefaultDate_ = _minDate(callDefaultDate_, _minDate(impairedDefaultDate_, normalPaymentDueDate_));
+        paymentDefaultDate_ = _minDate(callDefaultDate_, impairedDefaultDate_, normalPaymentDueDate_);
     }
 
     function factory() external view override returns (address factory_) {
@@ -285,15 +278,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function isCalled() public view override returns (bool isCalled_) {
-        isCalled_ = dateCalled != uint40(0);
+        isCalled_ = dateCalled != 0;
     }
 
     function isImpaired() public view override returns (bool isImpaired_) {
-        isImpaired_ = dateImpaired != uint40(0);
+        isImpaired_ = dateImpaired != 0;
     }
 
     function isInDefault() public view override returns (bool isInDefault_) {
-        isInDefault_ = block.timestamp > defaultDate();
+        uint40 defaultDate_ = defaultDate();
+
+        isInDefault_ = (defaultDate_ != 0) && (block.timestamp > defaultDate_);
     }
 
     function paymentBreakdown() public view override returns (uint256 interest_, uint256 lateInterest_) {
@@ -315,7 +310,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function paymentDueDate() public view override returns (uint40 paymentDueDate_) {
         ( uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_ ) = _dueDates();
 
-        paymentDueDate_ = _minDate(callDueDate_, _minDate(impairedDueDate_, normalDueDate_));
+        paymentDueDate_ = _minDate(callDueDate_, impairedDueDate_, normalDueDate_);
     }
 
     /**************************************************************************************************************************************/
@@ -346,38 +341,48 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
 
     function _dueDates() internal view returns (uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_) {
-        uint40 dateFunded_ = dateFunded;
-
-        require(dateFunded_ != uint40(0), "ML:DD:INACTIVE");
-
-        uint40 dateCalled_   = dateCalled;
-        uint40 dateImpaired_ = dateImpaired;
-        uint40 datePaid_     = datePaid;
-
-        callDueDate_     = (dateCalled_   != uint40(0)) ? dateCalled_ + noticePeriod : 0;
-        impairedDueDate_ = (dateImpaired_ != uint40(0)) ? dateImpaired_              : 0;
-
-        normalDueDate_ = _maxDate(dateFunded_, datePaid_) + paymentInterval;
+        callDueDate_     = _getCallDueDate(dateCalled, noticePeriod);
+        impairedDueDate_ = _getImpairedDueDate(dateImpaired);
+        normalDueDate_   = _getNormalDueDate(dateFunded, datePaid, paymentInterval);
     }
 
     function _defaultDates() internal view returns (uint40 callDefaultDate_, uint40 impairedDefaultDate_, uint40 normalDefaultDate_) {
-        uint40 dateFunded_ = dateFunded;
+        ( uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_ ) = _dueDates();
 
-        require(dateFunded_ != uint40(0), "ML:DD:INACTIVE");
-
-        uint40 dateCalled_   = dateCalled;
-        uint40 dateImpaired_ = dateImpaired;
-        uint40 datePaid_     = datePaid;
-
-        callDefaultDate_     = (dateCalled_   != uint40(0)) ? dateCalled_   + noticePeriod : 0;
-        impairedDefaultDate_ = (dateImpaired_ != uint40(0)) ? dateImpaired_ + gracePeriod  : 0;
-
-        normalDefaultDate_ = _maxDate(dateFunded_, datePaid_) + paymentInterval + gracePeriod;
+        callDefaultDate_     = _getCallDefaultDate(callDueDate_);
+        impairedDefaultDate_ = _getImpairedDefaultDate(impairedDueDate_, gracePeriod);
+        normalDefaultDate_   = _getNormalDefaultDate(normalDueDate_, gracePeriod);
     }
 
     /**************************************************************************************************************************************/
     /*** Internal Pure Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
+
+    function _getCallDefaultDate(uint40 callDueDate_) internal pure returns (uint40 defaultDate_) {
+        defaultDate_ = callDueDate_;
+    }
+
+    function _getCallDueDate(uint40 dateCalled_, uint32 noticePeriod_) internal pure returns (uint40 dueDate_) {
+        dueDate_ = dateCalled_ != 0 ? dateCalled_ + noticePeriod_ : 0;
+    }
+
+    function _getImpairedDefaultDate(uint40 impairedDueDate_, uint32 gracePeriod_) internal pure returns (uint40 defaultDate_) {
+        defaultDate_ = impairedDueDate_ != 0 ? impairedDueDate_ + gracePeriod_ : 0;
+    }
+
+    function _getImpairedDueDate(uint40 dateImpaired_) internal pure returns (uint40 dueDate_) {
+        dueDate_ = dateImpaired_ != 0 ? dateImpaired_: 0;
+    }
+
+    function _getNormalDefaultDate(uint40 normalDueDate_, uint32 gracePeriod_) internal pure returns (uint40 defaultDate_) {
+        defaultDate_ = normalDueDate_ != 0 ? normalDueDate_ + gracePeriod_ : 0;
+    }
+
+    function _getNormalDueDate(uint40 dateFunded_, uint40 datePaid_, uint32 paymentInterval_) internal pure returns (uint40 dueDate_) {
+        uint40 paidOrFundedDate_ = _maxDate(dateFunded_, datePaid_);
+
+        dueDate_ = paidOrFundedDate_ != 0 ? paidOrFundedDate_ + paymentInterval_ : 0;
+    }
 
     /// @dev Returns an amount by applying an annualized and scaled interest rate, to a principal, over an interval of time.
     function _getPaymentBreakdown(
@@ -400,15 +405,19 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function _getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) internal pure returns (uint256 proRatedAmount_) {
-        proRatedAmount_ = (amount_ * rate_ * interval_) / (uint256(365 days) * HUNDRED_PERCENT);
+        proRatedAmount_ = (amount_ * rate_ * interval_) / (365 days * HUNDRED_PERCENT);
     }
 
     function _maxDate(uint40 a_, uint40 b_) internal pure returns (uint40 max_) {
-        max_ = a_ == uint40(0) ? b_ : b_ == uint40(0) ? a_ : a_ > b_ ? a_ : b_;
+        max_ = a_ == 0 ? b_ : (b_ == 0 ? a_ : (a_ > b_ ? a_ : b_));
     }
 
     function _minDate(uint40 a_, uint40 b_) internal pure returns (uint40 min_) {
-        min_ = a_ == uint40(0) ? b_ : b_ == uint40(0) ? a_ : a_ < b_ ? a_ : b_;
+        min_ = a_ == 0 ? b_ : (b_ == 0 ? a_ : (a_ < b_ ? a_ : b_));
+    }
+
+    function _minDate(uint40 a_, uint40 b_, uint40 c_) internal pure returns (uint40 min_) {
+        min_ = _minDate(a_, _minDate(b_, c_));
     }
 
 }
