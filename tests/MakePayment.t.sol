@@ -163,7 +163,8 @@ contract FundSuccessTests is Test, Utils {
         assertEq(asset.balanceOf(address(loan)),   0);
 
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
-        lender.__expectedClaim(principalToReturn, expectedInterest + expectedLateInterest, uint40(expectedPaymentDueDate));
+        lender.__expectCall();
+        lender.claim(principalToReturn, expectedInterest + expectedLateInterest, uint40(expectedPaymentDueDate));
 
         // If there is principal returned, expect the relevant event.
         if (principalToReturn != 0) {

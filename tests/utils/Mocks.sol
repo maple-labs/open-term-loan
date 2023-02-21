@@ -25,45 +25,39 @@ contract MockGlobals {
 
 }
 
-contract MockLender is Test {
+// TODO: Eventually propose this to `forge-std`.
+contract Spied is Test {
 
-    bool internal assertClaim;
-    bool internal expectedClaim;
-    bool internal expectedClaimValues;
+    bool internal assertCalls;
+    bool internal captureCall;
 
-    uint256 internal expectedPrincipal;
-    uint256 internal expectedInterest;
-    uint256 internal expectedPaymentDueDate;
+    uint256 callCount;
 
-    function claim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external {
-        if (!assertClaim) return;
+    bytes[] internal calls;
 
-        assertTrue(expectedClaim);
+    modifier spied() {
+        if (captureCall) {
+            calls.push(msg.data);
+            captureCall = false;
+        } else {
+            if (assertCalls) {
+                assertEq(msg.data, calls[callCount++], "Unexpected call spied");
+            }
 
-        if (!expectedClaimValues) return;
-
-        assertEq(principal_,      expectedPrincipal);
-        assertEq(interest_,       expectedInterest);
-        assertEq(paymentDueDate_, expectedPaymentDueDate);
+            _;
+        }
     }
 
-    function __assertClaim(bool assert_) public {
-        assertClaim = assert_;
+    function __expectCall() public {
+        assertCalls = true;
+        captureCall = true;
     }
 
-    function __expectedClaim(bool expect_) public {
-        __assertClaim(true);
-        expectedClaim = expect_;
-    }
+}
 
-    function __expectedClaim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external {
-        __expectedClaim(true);
-        expectedClaimValues = true;
+contract MockLender is Spied {
 
-        expectedPrincipal      = principal_;
-        expectedInterest       = interest_;
-        expectedPaymentDueDate = paymentDueDate_;
-    }
+    function claim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external spied {}
 
 }
 
