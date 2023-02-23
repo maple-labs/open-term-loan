@@ -43,6 +43,10 @@ contract MapleLoanHarness is MapleLoan {
         datePaid = uint40(datePaid_);
     }
 
+    function __setDelegateServiceFeeRate(uint256 delegateServiceFeeRate_) external {
+        delegateServiceFeeRate = uint64(delegateServiceFeeRate_);
+    }
+
     function __setFactory(address factory_) external {
         _setFactory(factory_);
     }
@@ -60,15 +64,15 @@ contract MapleLoanHarness is MapleLoan {
     }
 
     function __setInterestRate(uint256 interestRate_) external {
-        interestRate = interestRate_;
+        interestRate = uint64(interestRate_);
     }
 
     function __setLateFeeRate(uint256 lateFeeRate_) external {
-        lateFeeRate = lateFeeRate_;
+        lateFeeRate = uint64(lateFeeRate_);
     }
 
     function __setLateInterestPremium(uint256 lateInterestPremium_) external {
-        lateInterestPremium = lateInterestPremium_;
+        lateInterestPremium = uint64(lateInterestPremium_);
     }
 
     function __setLender(address lender_) external {
@@ -89,6 +93,10 @@ contract MapleLoanHarness is MapleLoan {
 
     function __setPendingLender(address pendingLender_) external {
         pendingLender = pendingLender_;
+    }
+
+    function __setPlatformServiceFeeRate(uint256 platformServiceFeeRate_) external {
+        platformServiceFeeRate = uint64(platformServiceFeeRate_);
     }
 
     function __setPrincipal(uint256 principal_) external {
@@ -140,12 +148,23 @@ contract MapleLoanHarness is MapleLoan {
         uint256 interestRate_,
         uint256 lateInterestPremium_,
         uint256 lateFeeRate_,
+        uint256 delegateServiceFeeRate_,
+        uint256 platformServiceFeeRate_,
         uint256 interval_,
         uint256 lateInterval_
     )
-        external pure returns (uint256 interest_, uint256 lateInterest_)
+        external pure returns (uint256 interest_, uint256 lateInterest_, uint256 delegateServiceFee_, uint256 platformServiceFee_)
     {
-        return _getPaymentBreakdown(principal_, interestRate_, lateInterestPremium_, lateFeeRate_, uint32(interval_), uint32(lateInterval_));
+        return _getPaymentBreakdown(
+            principal_,
+            interestRate_,
+            lateInterestPremium_,
+            lateFeeRate_,
+            delegateServiceFeeRate_,
+            platformServiceFeeRate_,
+            uint32(interval_),
+            uint32(lateInterval_)
+        );
     }
 
     function __getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) external pure returns (uint256 proRatedAmount_) {

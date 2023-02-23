@@ -9,15 +9,25 @@ interface IMapleGlobalsLike {
 
     function isPoolAsset(address poolAsset_) external view returns (bool isValid_);
 
+    function platformServiceFeeRate(address poolManager) external view returns (uint256 platformServiceFeeRate_);
+
     function protocolPaused() external view returns (bool protocolPaused_);
 
 }
 
 interface ILenderLike {
 
-    function claim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external;
+    function claim(
+        uint256 principal_,
+        uint256 interest_,
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_,
+        uint40  paymentDueDate_
+    ) external;
 
     function factory() external view returns (address factory_);
+
+    function poolManager() external view returns (address poolManager_);
 
 }
 

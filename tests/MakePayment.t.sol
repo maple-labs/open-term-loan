@@ -13,7 +13,7 @@ import {
     MockRevertingERC20
 } from "./utils/Mocks.sol";
 
-contract FundFailureTests is Test, Utils {
+contract MakePaymentFailureTests is Test, Utils {
 
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockGlobals      globals = new MockGlobals();
@@ -70,13 +70,15 @@ contract FundFailureTests is Test, Utils {
 
 }
 
-contract FundSuccessTests is Test, Utils {
+contract MakePaymentSuccessTests is Test, Utils {
 
     event PaymentMade(
         address indexed lender,
         uint256 principalPaid,
         uint256 interestPaid,
         uint256 lateInterestPaid,
+        uint256 delegateServiceFee,
+        uint256 platformServiceFee,
         uint40  paymentDueDate,
         uint40  defaultDate
     );
@@ -86,10 +88,12 @@ contract FundSuccessTests is Test, Utils {
     uint256 constant gracePeriod  = 1 days;
     uint256 constant noticePeriod = 2 days;
 
-    uint256 constant interestRate        = 0.10e18;
-    uint256 constant lateFeeRate         = 0.01e18;
-    uint256 constant lateInterestPremium = 0.05e18;
-    uint256 constant principal           = 100_000e6;
+    uint64  constant delegateServiceFeeRate = 0.01e18;
+    uint64  constant interestRate           = 0.10e18;
+    uint64  constant lateFeeRate            = 0.01e18;
+    uint64  constant lateInterestPremium    = 0.05e18;
+    uint64  constant platformServiceFeeRate = 0.02e18;
+    uint256 constant principal              = 100_000e6;
 
     address account = makeAddr("account");
 
@@ -101,6 +105,7 @@ contract FundSuccessTests is Test, Utils {
     MockLender       lender  = new MockLender();
 
     function setUp() public {
+        loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setFactory(address(new MockFactory(address(globals))));
         loan.__setFundsAsset(address(asset));
         loan.__setGracePeriod(gracePeriod);
@@ -109,6 +114,7 @@ contract FundSuccessTests is Test, Utils {
         loan.__setLateInterestPremium(lateInterestPremium);
         loan.__setLender(address(lender));
         loan.__setNoticePeriod(noticePeriod);
+        loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
         loan.__setPrincipal(principal);
 
         vm.prank(account);
@@ -147,13 +153,23 @@ contract FundSuccessTests is Test, Utils {
 
         loan.__setDateFunded(dateFunded);
 
-        ( uint256 expectedInterest, uint256 expectedLateInterest ) = loan.paymentBreakdown();
+        (
+            uint256 expectedInterest,
+            uint256 expectedLateInterest,
+            uint256 expectedDelegateServiceFee,
+            uint256 expectedPlatformServiceFee
+        ) = loan.paymentBreakdown();
 
         // `expectedPaymentDueDate` and `expectedDefaultDate` will be 0 if all principal is returned.
         uint256 expectedPaymentDueDate = principalToReturn == principal ? 0 : datePaid + paymentInterval;
         uint256 expectedDefaultDate    = expectedPaymentDueDate == 0 ? 0 : expectedPaymentDueDate + gracePeriod;
 
-        uint256 totalPayment = principalToReturn + expectedInterest + expectedLateInterest;
+        uint256 totalPayment =
+            principalToReturn +
+            expectedInterest +
+            expectedLateInterest +
+            expectedDelegateServiceFee +
+            expectedPlatformServiceFee;
 
         deal(address(asset), account, totalPayment);
 
@@ -164,7 +180,13 @@ contract FundSuccessTests is Test, Utils {
 
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
         lender.__expectCall();
-        lender.claim(principalToReturn, expectedInterest + expectedLateInterest, uint40(expectedPaymentDueDate));
+        lender.claim(
+            principalToReturn,
+            expectedInterest + expectedLateInterest,
+            expectedDelegateServiceFee,
+            expectedPlatformServiceFee,
+            uint40(expectedPaymentDueDate)
+        );
 
         // If there is principal returned, expect the relevant event.
         if (principalToReturn != 0) {
@@ -178,16 +200,25 @@ contract FundSuccessTests is Test, Utils {
             principalToReturn,
             expectedInterest,
             expectedLateInterest,
+            expectedDelegateServiceFee,
+            expectedPlatformServiceFee,
             uint40(expectedPaymentDueDate),
             uint40(expectedDefaultDate)
         );
 
         vm.prank(account);
-        ( uint256 interest, uint256 lateInterest ) = loan.makePayment(principalToReturn);
+        (
+            uint256 interest,
+            uint256 lateInterest,
+            uint256 delegateServiceFee,
+            uint256 platformServiceFee
+        ) = loan.makePayment(principalToReturn);
 
         // Asset returns of function.
-        assertEq(interest,     expectedInterest);
-        assertEq(lateInterest, expectedLateInterest);
+        assertEq(interest,           expectedInterest);
+        assertEq(lateInterest,       expectedLateInterest);
+        assertEq(delegateServiceFee, expectedDelegateServiceFee);
+        assertEq(platformServiceFee, expectedPlatformServiceFee);
 
         // Asset balances of relevant addresses after the payment is made.
         assertEq(asset.balanceOf(account),         0);

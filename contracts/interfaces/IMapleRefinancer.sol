@@ -18,19 +18,19 @@ interface IMapleRefinancer {
      *  @dev   A new value for interestRate has been set.
      *  @param interestRate_ The new value for interestRate.
      */
-    event InterestRateSet(uint256 interestRate_);
+    event InterestRateSet(uint64 interestRate_);
 
     /**
      *  @dev   A new value for lateFeeRate has been set.
      *  @param lateFeeRate_ The new value for lateFeeRate.
      */
-    event LateFeeRateSet(uint256 lateFeeRate_);
+    event LateFeeRateSet(uint64 lateFeeRate_);
 
     /**
      *  @dev   A new value for lateInterestPremium has been set.
      *  @param lateInterestPremium_ The new value for lateInterestPremium.
      */
-    event LateInterestPremiumSet(uint256 lateInterestPremium_);
+    event LateInterestPremiumSet(uint64 lateInterestPremium_);
 
     /**
      *  @dev   A new value for noticePeriod has been set.
@@ -83,19 +83,19 @@ interface IMapleRefinancer {
                The interest rate is measured with 18 decimals of precision.
      *  @param interestRate_ The new value for interestRate.
      */
-    function setInterestRate(uint256 interestRate_) external;
+    function setInterestRate(uint64 interestRate_) external;
 
     /**
      *  @dev   Function to set the lateFeeRate during a refinance.
      *  @param lateFeeRate_ The new value for lateFeeRate.
      */
-    function setLateFeeRate(uint256 lateFeeRate_) external;
+    function setLateFeeRate(uint64 lateFeeRate_) external;
 
     /**
      *  @dev   Function to set the lateInterestPremium during a refinance.
      *  @param lateInterestPremium_ The new value for lateInterestPremium.
      */
-    function setLateInterestPremium(uint256 lateInterestPremium_) external;
+    function setLateInterestPremium(uint64 lateInterestPremium_) external;
 
     /**
      *  @dev   Function to set the noticePeriod during a refinance.

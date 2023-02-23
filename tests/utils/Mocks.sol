@@ -57,7 +57,13 @@ contract Spied is Test {
 
 contract MockLender is Spied {
 
-    function claim(uint256 principal_, uint256 interest_, uint40 paymentDueDate_) external spied {}
+    function claim(
+        uint256 principal_,
+        uint256 interest_,
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_,
+        uint40  paymentDueDate_
+    ) external spied { }
 
 }
 

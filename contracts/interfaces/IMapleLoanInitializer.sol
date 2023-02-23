@@ -14,11 +14,12 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *  @param  termDetails_        Array of loan parameters:
      *                                  [0]: gracePeriod,
      *                                  [1]: noticePeriod,
-     *                                  [2]: paymentInterval,
-     *  @param  rates_              Fee parameters:
-     *                                  [0]: interestRate,
-     *                                  [1]: lateFeeRate,
-     *                                  [2]: lateInterestPremium
+     *                                  [2]: paymentInterval
+     *  @param  rates_              Array of rate parameters:
+     *                                  [0]: delegateServiceFeeRate,
+     *                                  [1]: interestRate,
+     *                                  [2]: lateFeeRate,
+     *                                  [3]: lateInterestPremium
      *  @return encodedArguments_  The encoded arguments for initializing a loan.
      */
     function encodeArguments(
@@ -27,7 +28,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
         address fundsAsset_,
         uint256 principalRequested_,
         uint32[3] memory termDetails_,
-        uint256[3] memory rates_
+        uint64[4] memory rates_
     ) external pure returns (bytes memory encodedArguments_);
 
     /**
@@ -40,11 +41,12 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *  @return termDetails_        Array of loan parameters:
      *                                  [0]: gracePeriod,
      *                                  [1]: noticePeriod,
-     *                                  [2]: paymentInterval,
-     *  @return rates_              Fee parameters:
-     *                                  [0]: interestRate,
-     *                                  [1]: lateFeeRate,
-     *                                  [2]: lateInterestPremium
+     *                                  [2]: paymentInterval
+     *  @return rates_              Array of rate parameters:
+     *                                  [0]: delegateServiceFeeRate,
+     *                                  [1]: interestRate,
+     *                                  [2]: lateFeeRate,
+     *                                  [3]: lateInterestPremium
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
@@ -53,7 +55,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
             address fundsAsset_,
             uint256 principalRequested_,
             uint32[3] memory termDetails_,
-            uint256[3] memory rates_
+            uint64[4] memory rates_
         );
 
 }

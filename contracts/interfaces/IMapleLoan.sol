@@ -49,11 +49,19 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**
      *  @dev    Make a payment to the loan.
-     *  @param  principalToReturn_ The amount of principal to return, to the lender to reduce future interest payments.
-     *  @return interest_          The portion of the amount paying interest.
-     *  @return lateInterest_      The portion of the amount paying late interest.
+     *  @param  principalToReturn_  The amount of principal to return, to the lender to reduce future interest payments.
+     *  @return interest_           The portion of the amount paying interest.
+     *  @return lateInterest_       The portion of the amount paying late interest.
+     *  @return delegateServiceFee_ The portion of the amount paying delegate service fees.
+     *  @return platformServiceFee_ The portion of the amount paying platform service fees.
      */
-    function makePayment(uint256 principalToReturn_) external returns (uint256 interest_, uint256 lateInterest_);
+    function makePayment(uint256 principalToReturn_)
+        external returns (
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        );
 
     /**
      *  @dev    Remove the loan's called status.
@@ -127,10 +135,18 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
 
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
-     *  @return interest_     The portion of the total amount that will go towards interest fees.
-     *  @return lateInterest_ The portion of the total amount that will go towards late interest fees.
+     *  @return interest_           The portion of the total amount that will go towards interest fees.
+     *  @return lateInterest_       The portion of the total amount that will go towards late interest fees.
+     *  @return delegateServiceFee_ The portion of the total amount that will go towards delegate service fees.
+     *  @return platformServiceFee_ The portion of the total amount that will go towards platform service fees.
      */
-    function paymentBreakdown() external view returns (uint256 interest_, uint256 lateInterest_);
+    function paymentBreakdown()
+        external view returns (
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        );
 
     /**
      *  @dev The timestamp of the due date of the next payment.

@@ -17,7 +17,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         address fundsAsset_,
         uint256 principalRequested_,
         uint32[3] memory termDetails_,
-        uint256[3] memory rates_
+        uint64[4] memory rates_
     ) external pure override returns (bytes memory encodedArguments_) {
         return abi.encode(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }
@@ -29,7 +29,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address fundsAsset_,
             uint256 principalRequested_,
             uint32[3] memory termDetails_,
-            uint256[3] memory rates_
+            uint64[4] memory rates_
         )
     {
         (
@@ -39,7 +39,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             principalRequested_,
             termDetails_,
             rates_
-        ) = abi.decode(encodedArguments_, (address, address, address, uint256, uint32[3], uint256[3]));
+        ) = abi.decode(encodedArguments_, (address, address, address, uint256, uint32[3], uint64[4]));
     }
 
     fallback() external {
@@ -49,7 +49,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
             address fundsAsset_,
             uint256 principalRequested_,
             uint32[3] memory termDetails_,
-            uint256[3] memory rates_
+            uint64[4] memory rates_
         ) = decodeArguments(msg.data);
 
         _initialize(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
@@ -63,7 +63,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         address fundsAsset_,
         uint256 principalRequested_,
         uint32[3] memory termDetails_,
-        uint256[3] memory rates_
+        uint64[4] memory rates_
     )
         internal
     {
@@ -95,9 +95,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         noticePeriod    = termDetails_[1];
         paymentInterval = termDetails_[2];
 
-        interestRate        = rates_[0];
-        lateFeeRate         = rates_[1];
-        lateInterestPremium = rates_[2];
+        address poolManager_ = ILenderLike(lender_).poolManager();
+
+        delegateServiceFeeRate = rates_[0];
+        interestRate           = rates_[1];
+        lateFeeRate            = rates_[2];
+        lateInterestPremium    = rates_[3];
+        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(poolManager_));
     }
 
 }

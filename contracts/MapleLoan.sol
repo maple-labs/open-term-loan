@@ -32,6 +32,7 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 // TODO: Use error codes.
 // TODO: Consider safe casting from uint256 to uint32/uint40.
+// TODO: Update platformServiceFeeRate on refinance.
 
 /// @title MapleLoan implements an open term loan, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
@@ -87,16 +88,22 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function makePayment(uint256 principalToReturn_)
-        external override whenProtocolNotPaused returns (uint256 interest_, uint256 lateInterest_) {
+        external override whenProtocolNotPaused returns (
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        )
+    {
         // If the loan is called, the principal being returned must be greater than the portion called.
         // TODO: Better error strings, but error codes would be better.
         require(dateFunded != 0,                       "ML:MP:LOAN_INACTIVE");
         require(principalToReturn_ <= principal,       "ML:MP:RETUNING_TOO_MUCH");
         require(principalToReturn_ >= calledPrincipal, "ML:MP:INSUFFICIENT_FOR_CALL");
 
-        ( interest_, lateInterest_ ) = paymentBreakdown();
+        ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown();
 
-        uint256 total_ = principalToReturn_ + interest_ + lateInterest_;
+        uint256 total_ = principalToReturn_ + interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
         if (principalToReturn_ == principal) {
             _clearLoanAccounting();
@@ -116,13 +123,24 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint40 paymentDueDate_ = paymentDueDate();
 
-        emit PaymentMade(lender, principalToReturn_, interest_, lateInterest_, paymentDueDate_, defaultDate());
+        emit PaymentMade(
+            lender,
+            principalToReturn_,
+            interest_,
+            lateInterest_,
+            delegateServiceFee_,
+            platformServiceFee_,
+            paymentDueDate_,
+            defaultDate()
+        );
 
         require(ERC20Helper.transferFrom(fundsAsset, msg.sender, lender, total_), "ML:MP:TRANSFER_FROM_FAILED");
 
         ILenderLike(lender).claim(
             principalToReturn_,
             interest_ + lateInterest_,
+            delegateServiceFee_,
+            platformServiceFee_,
             paymentDueDate_
         );
     }
@@ -291,17 +309,26 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         isInDefault_ = (defaultDate_ != 0) && (block.timestamp > defaultDate_);
     }
 
-    function paymentBreakdown() public view override returns (uint256 interest_, uint256 lateInterest_) {
+    function paymentBreakdown()
+        public view override returns (
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        )
+    {
         uint40 paymentDueDate_   = paymentDueDate();
         uint40 paidOrFundedDate_ = _maxDate(datePaid, dateFunded);
 
         bool isLate_ = block.timestamp > paymentDueDate_;
 
-        ( interest_, lateInterest_ ) = _getPaymentBreakdown(
+        ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = _getPaymentBreakdown(
             principal,
             interestRate,
             lateInterestPremium,
             lateFeeRate,
+            delegateServiceFeeRate,
+            platformServiceFeeRate,
             uint32(isLate_ ? paymentDueDate_ - paidOrFundedDate_ : block.timestamp - paidOrFundedDate_),  // "Current" interval
             uint32(isLate_ ? block.timestamp - paymentDueDate_   : 0)                                     // Late interval
         );
@@ -390,18 +417,22 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 interestRate_,
         uint256 lateInterestPremium_,
         uint256 lateFeeRate_,
+        uint256 delegateServiceFeeRate_,
+        uint256 platformServiceFeeRate_,
         uint32 interval_,
         uint32 lateInterval_
     )
-        internal pure returns (uint256 interest_, uint256 lateInterest_)
+        internal pure returns (uint256 interest_, uint256 lateInterest_, uint256 delegateServiceFee_, uint256 platformServiceFee_)
     {
-        interest_ = _getProRatedAmount(principal_, interestRate_, interval_);
+        interest_           = _getProRatedAmount(principal_, interestRate_,           interval_);
+        delegateServiceFee_ = _getProRatedAmount(principal_, delegateServiceFeeRate_, interval_ + lateInterval_);
+        platformServiceFee_ = _getProRatedAmount(principal_, platformServiceFeeRate_, interval_ + lateInterval_);
 
-        if (lateInterval_ == 0) return (interest_, 0);
+        if (lateInterval_ == 0) return (interest_, 0, delegateServiceFee_, platformServiceFee_);
 
         lateInterest_ =
             _getProRatedAmount(principal_, interestRate_ + lateInterestPremium_, lateInterval_) +
-            ((principal_ * lateFeeRate_) / HUNDRED_PERCENT);
+            (principal_ * lateFeeRate_ / HUNDRED_PERCENT);
     }
 
     function _getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) internal pure returns (uint256 proRatedAmount_) {

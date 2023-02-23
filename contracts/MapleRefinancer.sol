@@ -20,6 +20,8 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 // TODO: Update ASCII art
 // TODO: `decreasePrincipal` and `increasePrincipal` not fully developed yet with the loan and loan manager.
+// TODO: Add option for refinancing the delegate service fees?
+// TODO: What happens to the platform service fee when a loan is refinanced? When (if ever) is it updated?
 
 /// @title Refinancer uses storage from a MapleLoan defined by MapleLoanStorage.
 contract MapleRefinancer is IMapleRefinancer, MapleLoanStorage {
@@ -40,15 +42,15 @@ contract MapleRefinancer is IMapleRefinancer, MapleLoanStorage {
         emit GracePeriodSet(gracePeriod = gracePeriod_);
     }
 
-    function setInterestRate(uint256 interestRate_) external override {
+    function setInterestRate(uint64 interestRate_) external override {
         emit InterestRateSet(interestRate = interestRate_);
     }
 
-    function setLateFeeRate(uint256 lateFeeRate_) external override {
+    function setLateFeeRate(uint64 lateFeeRate_) external override {
         emit LateFeeRateSet(lateFeeRate = lateFeeRate_);
     }
 
-    function setLateInterestPremium(uint256 lateInterestPremium_) external override {
+    function setLateInterestPremium(uint64 lateInterestPremium_) external override {
         emit LateInterestPremiumSet(lateInterestPremium = lateInterestPremium_);
     }
 

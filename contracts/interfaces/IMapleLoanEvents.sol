@@ -34,11 +34,12 @@ interface IMapleLoanEvents {
      *  @param termDetails_        Array of loan parameters:
      *                                 [0]: gracePeriod,
      *                                 [1]: noticePeriod,
-     *                                 [2]: paymentInterval,
-     *  @param rates_              Fee parameters:
-     *                                 [0]: interestRate,
-     *                                 [1]: lateFeeRate,
-     *                                 [2]: lateInterestPremium
+     *                                 [2]: paymentInterval
+     *  @param rates_              Array of rate parameters:
+     *                                 [0]: delegateServiceFeeRate,
+     *                                 [1]: interestRate,
+     *                                 [2]: lateFeeRate,
+     *                                 [3]: lateInterestPremium
      */
     event Initialized(
         address indexed borrower_,
@@ -46,7 +47,7 @@ interface IMapleLoanEvents {
         address indexed fundsAsset_,
         uint256 principalRequested_,
         uint32[3] termDetails_,
-        uint256[3] rates_
+        uint64[4] rates_
     );
 
     /**
@@ -87,20 +88,24 @@ interface IMapleLoanEvents {
 
     /**
      *  @dev   Payments were made.
-     *  @param lender_           The address of the lender the payment was made to.
-     *  @param principalPaid_    The portion of the total amount that went towards paying down principal.
-     *  @param interestPaid_     The portion of the total amount that went towards interest.
-     *  @param lateInterestPaid_ The portion of the total amount that went towards late interest.
-     *  @param paymentDueDate_   The new next payment due date.
-     *  @param defaultDate_      The date the loan will be in default.
+     *  @param lender_             The address of the lender the payment was made to.
+     *  @param principalPaid_      The portion of the total amount that went towards paying down principal.
+     *  @param interestPaid_       The portion of the total amount that went towards interest.
+     *  @param lateInterestPaid_   The portion of the total amount that went towards late interest.
+     *  @param delegateServiceFee_ The portion of the total amount that went towards late interest.
+     *  @param platformServiceFee_ The portion of the total amount that went towards late interest.
+     *  @param paymentDueDate_     The new next payment due date.
+     *  @param defaultDate_        The date the loan will be in default.
      */
     event PaymentMade(
         address indexed lender_,
         uint256 principalPaid_,
         uint256 interestPaid_,
         uint256 lateInterestPaid_,
-        uint40 paymentDueDate_,
-        uint40 defaultDate_
+        uint256 delegateServiceFee_,
+        uint256 platformServiceFee_,
+        uint40  paymentDueDate_,
+        uint40  defaultDate_
     );
 
     /**
