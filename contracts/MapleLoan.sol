@@ -101,7 +101,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(principalToReturn_ <= principal,       "ML:MP:RETUNING_TOO_MUCH");
         require(principalToReturn_ >= calledPrincipal, "ML:MP:INSUFFICIENT_FOR_CALL");
 
-        ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown();
+        ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown(block.timestamp);
 
         uint256 total_ = principalToReturn_ + interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
@@ -309,7 +309,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         isInDefault_ = (defaultDate_ != 0) && (block.timestamp > defaultDate_);
     }
 
-    function paymentBreakdown()
+    function paymentBreakdown(uint256 timestamp_)
         public view override returns (
             uint256 interest_,
             uint256 lateInterest_,
@@ -317,10 +317,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             uint256 platformServiceFee_
         )
     {
-        uint40 paymentDueDate_   = paymentDueDate();
-        uint40 paidOrFundedDate_ = _maxDate(datePaid, dateFunded);
-
-        bool isLate_ = block.timestamp > paymentDueDate_;
+        uint40 paymentDueDate_ = paymentDueDate();
+        uint40 startDate_      = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
 
         ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = _getPaymentBreakdown(
             principal,
@@ -329,8 +327,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             lateFeeRate,
             delegateServiceFeeRate,
             platformServiceFeeRate,
-            uint32(isLate_ ? paymentDueDate_ - paidOrFundedDate_ : block.timestamp - paidOrFundedDate_),  // "Current" interval
-            uint32(isLate_ ? block.timestamp - paymentDueDate_   : 0)                                     // Late interval
+            uint32(timestamp_ > paymentDueDate_ ? paymentDueDate_ - startDate_      : timestamp_ - startDate_),  // "Current" interval
+            uint32(timestamp_ > paymentDueDate_ ? timestamp_      - paymentDueDate_ : 0)                         // Late interval
         );
     }
 
@@ -419,8 +417,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint256 lateFeeRate_,
         uint256 delegateServiceFeeRate_,
         uint256 platformServiceFeeRate_,
-        uint32 interval_,
-        uint32 lateInterval_
+        uint32  interval_,
+        uint32  lateInterval_
     )
         internal pure returns (uint256 interest_, uint256 lateInterest_, uint256 delegateServiceFee_, uint256 platformServiceFee_)
     {
