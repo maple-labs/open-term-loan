@@ -95,13 +95,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             uint256 platformServiceFee_
         )
     {
+        uint256 calledPrincipal_;
+
+        ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown(block.timestamp);
+
         // If the loan is called, the principal being returned must be greater than the portion called.
         // TODO: Better error strings, but error codes would be better.
-        require(dateFunded != 0,                       "ML:MP:LOAN_INACTIVE");
-        require(principalToReturn_ <= principal,       "ML:MP:RETUNING_TOO_MUCH");
-        require(principalToReturn_ >= calledPrincipal, "ML:MP:INSUFFICIENT_FOR_CALL");
-
-        ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown(block.timestamp);
+        require(dateFunded != 0,                        "ML:MP:LOAN_INACTIVE");
+        require(principalToReturn_ <= principal,        "ML:MP:RETUNING_TOO_MUCH");
+        require(principalToReturn_ >= calledPrincipal_, "ML:MP:INSUFFICIENT_FOR_CALL");
 
         uint256 total_ = principalToReturn_ + interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
@@ -311,6 +313,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function paymentBreakdown(uint256 timestamp_)
         public view override returns (
+            uint256 principal_,
             uint256 interest_,
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
@@ -320,6 +323,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint40 paymentDueDate_ = paymentDueDate();
         uint40 startDate_      = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
 
+        // "Current" interval and late interval respectively.
+        ( uint32 interval_, uint32 lateInterval_ ) = timestamp_ > paymentDueDate_
+            ? ( uint32(paymentDueDate_ - startDate_), uint32(timestamp_ - paymentDueDate_) )
+            : ( uint32(timestamp_      - startDate_), 0 );
+
         ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = _getPaymentBreakdown(
             principal,
             interestRate,
@@ -327,9 +335,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             lateFeeRate,
             delegateServiceFeeRate,
             platformServiceFeeRate,
-            uint32(timestamp_ > paymentDueDate_ ? paymentDueDate_ - startDate_      : timestamp_ - startDate_),  // "Current" interval
-            uint32(timestamp_ > paymentDueDate_ ? timestamp_      - paymentDueDate_ : 0)                         // Late interval
+            interval_,
+            lateInterval_
         );
+
+        principal_ = calledPrincipal;
     }
 
     function paymentDueDate() public view override returns (uint40 paymentDueDate_) {

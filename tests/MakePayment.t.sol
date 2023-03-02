@@ -154,6 +154,7 @@ contract MakePaymentSuccessTests is Test, Utils {
         loan.__setDateFunded(dateFunded);
 
         (
+            , // UNUSED
             uint256 expectedInterest,
             uint256 expectedLateInterest,
             uint256 expectedDelegateServiceFee,

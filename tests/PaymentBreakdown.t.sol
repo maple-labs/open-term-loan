@@ -52,7 +52,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(uint64(delegateServiceFeeRate));
         loan.__setPlatformServiceFeeRate(uint64(platformServiceFeeRate));
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         uint256 paymentDueDate = dateFunded + paymentInterval;
 
@@ -98,7 +98,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           100_000e6);
         assertEq(lateInterest,       0);
@@ -122,7 +122,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           8_219.178082e6);
         assertEq(lateInterest,       0);
@@ -146,7 +146,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           90_000e6);
         assertEq(lateInterest,       0);
@@ -172,7 +172,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           100_000e6);  // 1 year at 10% interest
         assertEq(lateInterest,       15_000e6);   // 0.1 years at (10% + 5%) interest (15_000e6)
@@ -198,7 +198,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           50_000e6);  // 0.5 years at 10% interest
         assertEq(lateInterest,       19_000e6);  // 0.1 years at 10% interest (10_000e6) + 0.9% of flat fee (9_000e6)
@@ -226,7 +226,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           50_000e6);  // 0.5 years at 10% interest
         assertEq(lateInterest,       24_000e6);  // 0.1 years at (10% + 5%) interest (15_000e6) + 0.9% of flat fee (9_000e6)
@@ -254,7 +254,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(uint64(delegateServiceFeeRate));
         loan.__setPlatformServiceFeeRate(uint64(platformServiceFeeRate));
 
-        ( interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
         assertEq(interest,           40_000e6);  // 1,000,000 * 8% * 1/2
         assertEq(lateInterest,       41_500e6);  // 1,000,000 * (8+5)% * 1/4 + 1,000,000 * 0.9%

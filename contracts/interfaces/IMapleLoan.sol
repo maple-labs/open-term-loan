@@ -136,6 +136,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     /**
      *  @dev    Get the breakdown of the total payment needed to satisfy the next payment installment.
      *  @param  timestamp_          The timestamp that corresponds to when the payment is to be made.
+     *  @return principal_          The portion of the total amount that will go towards principal.
      *  @return interest_           The portion of the total amount that will go towards interest fees.
      *  @return lateInterest_       The portion of the total amount that will go towards late interest fees.
      *  @return delegateServiceFee_ The portion of the total amount that will go towards delegate service fees.
@@ -143,6 +144,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
      */
     function paymentBreakdown(uint256 timestamp_)
         external view returns (
+            uint256 principal_,
             uint256 interest_,
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
