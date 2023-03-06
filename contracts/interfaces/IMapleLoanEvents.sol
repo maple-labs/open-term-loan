@@ -51,20 +51,6 @@ interface IMapleLoanEvents {
     );
 
     /**
-     *  @dev   Lender was accepted, and set to a new account.
-     *  @param lender_ The address of the new lender.
-     */
-    event LenderAccepted(address indexed lender_);
-
-    /**
-     *  @dev   The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
-     *  @param principalToReturn_ The minimum amount of principal the borrower must return.
-     *  @param paymentDueDate_    The new next payment due date.
-     *  @param defaultDate_       The date the loan will be in default.
-     */
-    event PrincipalCalled(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
-
-    /**
      *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.
      *         This is emitted when the pool delegate wants to force a payment (or default).
      *  @param paymentDueDate_ The new next payment due date.
@@ -73,18 +59,42 @@ interface IMapleLoanEvents {
     event Impaired(uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
-     *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
-     *  @param principalReturned_  The amount of principal returned.
-     *  @param principalRemaining_ The amount of principal remaining on the loan.
-     */
-    event PrincipalReturned(uint256 principalReturned_, uint256 principalRemaining_);
-
-    /**
      *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
      *  @param paymentDueDate_ The new next payment due date.
      *  @param defaultDate_    The date the loan will be in default.
      */
     event ImpairmentRemoved(uint40 paymentDueDate_, uint40 defaultDate_);
+
+    /**
+     *  @dev   Lender was accepted, and set to a new account.
+     *  @param lender_ The address of the new lender.
+     */
+    event LenderAccepted(address indexed lender_);
+
+   /**
+     *  @dev   The terms of the refinance proposal were accepted.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
+     *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+
+    /**
+     *  @dev   A refinance was proposed.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
+     *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+    
+    /**
+     *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
+     *  @param principalReturned_  The amount of principal returned.
+     *  @param principalRemaining_ The amount of principal remaining on the loan.
+     */
+    event PrincipalReturned(uint256 principalReturned_, uint256 principalRemaining_);
 
     /**
      *  @dev   Payments were made.
@@ -119,6 +129,14 @@ interface IMapleLoanEvents {
      *  @param pendingLender_ The address that can accept the lender role.
      */
     event PendingLenderSet(address indexed pendingLender_);
+
+    /**
+     *  @dev   The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
+     *  @param principalToReturn_ The minimum amount of principal the borrower must return.
+     *  @param paymentDueDate_    The new next payment due date.
+     *  @param defaultDate_       The date the loan will be in default.
+     */
+    event PrincipalCalled(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.

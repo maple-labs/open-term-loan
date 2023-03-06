@@ -9,8 +9,7 @@ import {
     MockERC20,
     MockFactory,
     MockGlobals,
-    MockLender,
-    MockRevertingERC20
+    MockLender
 } from "./utils/Mocks.sol";
 
 contract MakePaymentFailureTests is Test, Utils {
@@ -182,7 +181,7 @@ contract MakePaymentSuccessTests is Test, Utils {
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
         lender.__expectCall();
         lender.claim(
-            principalToReturn,
+            int256(principalToReturn),
             expectedInterest + expectedLateInterest,
             expectedDelegateServiceFee,
             expectedPlatformServiceFee,

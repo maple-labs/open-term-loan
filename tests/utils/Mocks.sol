@@ -19,6 +19,8 @@ contract MockGlobals {
 
     bool public protocolPaused;
 
+    mapping(address => uint256) public platformServiceFeeRate;
+
     function __setProtocolPaused(bool paused_) external {
         protocolPaused = paused_;
     }
@@ -58,12 +60,14 @@ contract Spied is Test {
 contract MockLender is Spied {
 
     function claim(
-        uint256 principal_,
+        int256  principal_,
         uint256 interest_,
         uint256 delegateServiceFee_,
         uint256 platformServiceFee_,
         uint40  paymentDueDate_
     ) external spied { }
+
+    function poolManager() external view returns (address poolManager_) { }
 
 }
 
@@ -78,6 +82,14 @@ contract MockRevertingERC20 is MockERC20 {
 
     function transferFrom(address, address, uint256) public override pure returns (bool success_) {
         success_;
+        require(false);
+    }
+
+}
+
+contract MockRevertingRefinancer {
+
+    function revertingFunction() external pure {
         require(false);
     }
 

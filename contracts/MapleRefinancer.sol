@@ -19,7 +19,6 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 */
 
 // TODO: Update ASCII art
-// TODO: `decreasePrincipal` and `increasePrincipal` not fully developed yet with the loan and loan manager.
 // TODO: Add option for refinancing the delegate service fees?
 // TODO: What happens to the platform service fee when a loan is refinanced? When (if ever) is it updated?
 

@@ -18,7 +18,7 @@ interface IMapleGlobalsLike {
 interface ILenderLike {
 
     function claim(
-        uint256 principal_,
+        int256 principal_,
         uint256 interest_,
         uint256 delegateServiceFee_,
         uint256 platformServiceFee_,

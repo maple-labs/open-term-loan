@@ -77,7 +77,6 @@ contract PaymentBreakdownTests is Test, Utils {
 
         // Off-by-one due to reworked formula above. Better this than to use the exact same formula, which defeats the test's purpose.
         assertApproxEqAbs(lateInterest, expectedLateInterest, 1);
-
         assertEq(delegateServiceFee, expectedDelegateServiceFee);
         assertEq(platformServiceFee, expectedPlatformServiceFee);
     }

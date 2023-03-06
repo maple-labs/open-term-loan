@@ -103,4 +103,9 @@ interface IMapleLoanStorage {
      */
     function principal() external view returns (uint256 principal_);
 
+    /**
+     *  @dev The hash of the proposed refinance agreement.
+     */
+    function refinanceCommitment() external view returns (bytes32 refinanceCommitment_);
+
 }

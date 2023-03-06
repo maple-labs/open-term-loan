@@ -24,6 +24,16 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function acceptLender() external;
 
     /**
+     *  @dev    Accept the proposed terms and trigger refinance execution.
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the accepted refinance agreement.
+     */
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
+
+    /**
      *  @dev    The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
      *  @param  principalToReturn_ The minimum amount of principal the borrower must return.
      *  @return paymentDueDate_    The payment due date for returning the principal and pro-rate interest to the lender.
@@ -155,5 +165,15 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
      *  @dev The timestamp of the due date of the next payment.
      */
     function paymentDueDate() external view returns (uint40 paymentDueDate_);
+
+    /**
+     *  @dev    Propose new terms for refinance.
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the proposed refinance agreement.
+     */
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
 
 }

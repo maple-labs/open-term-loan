@@ -87,6 +87,85 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(borrower = msg.sender);
     }
 
+    function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+    {
+        require(msg.sender == borrower, "ML:ANT:NOT_BORROWER");
+
+        // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
+        require(
+            refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
+            "ML:ANT:COMMITMENT_MISMATCH"
+        );
+
+        // TODO: Revisit idea to add allowlist check to globals.
+        require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
+        require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
+
+        uint256 previousPrincipal_ = principal;
+
+        (
+            ,
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        ) = paymentBreakdown(block.timestamp);
+
+        // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
+        datePaid = uint40(block.timestamp);
+
+        delete dateImpaired;
+        delete dateCalled;
+        delete refinanceCommitment;
+
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
+
+        for (uint256 i; i < calls_.length;) {
+            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
+            require(success, "ML:ANT:FAILED");
+            unchecked { ++i; }
+        }
+
+        address fundsAsset_ = fundsAsset;
+
+        int256 netPrincipalToReturnToLender_ = _int256(previousPrincipal_) - _int256(principal);
+
+        uint256 interestAndFees_ = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
+
+        require(
+            ERC20Helper.transferFrom(
+                fundsAsset_,
+                borrower,
+                address(lender),
+                (netPrincipalToReturnToLender_ > 0 ? _uint256(netPrincipalToReturnToLender_) : 0) + interestAndFees_
+            ),
+            "ML:ANT:TRANSFER_FAILED"
+        );
+
+        ILenderLike lender_ = ILenderLike(lender);
+
+        // Globals stores rates as 1e6 but the loan needs it as 1e18.
+        // TODO: Revisit this and see if there is an better approach.
+        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()) * 1e12);
+
+        lender_.claim(
+            netPrincipalToReturnToLender_,
+            interest_ + lateInterest_,
+            delegateServiceFee_,
+            platformServiceFee_,
+            paymentDueDate()
+        );
+
+        // Principal has increased in the Loan, so Loan pulls funds from Lender.
+        if (netPrincipalToReturnToLender_ < 0) {
+            require(
+                ERC20Helper.transferFrom(fundsAsset_, address(lender_), borrower, _uint256(netPrincipalToReturnToLender_ * -1)),
+                "ML:ANT:TRANSFER_FAILED"
+            );
+        }
+    }
+
     function makePayment(uint256 principalToReturn_)
         external override whenProtocolNotPaused returns (
             uint256 interest_,
@@ -139,7 +218,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transferFrom(fundsAsset, msg.sender, lender, total_), "ML:MP:TRANSFER_FROM_FAILED");
 
         ILenderLike(lender).claim(
-            principalToReturn_,
+            _int256(principalToReturn_),
             interest_ + lateInterest_,
             delegateServiceFee_,
             platformServiceFee_,
@@ -207,6 +286,23 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit Impaired(
             paymentDueDate_ = paymentDueDate(),
             defaultDate_    = defaultDate()
+        );
+    }
+
+    // TODO: Investigate refinancer validation.
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+    {
+        require(msg.sender == lender,         "ML:PNT:NOT_LENDER");
+        require(deadline_ >= block.timestamp, "ML:PNT:INVALID_DEADLINE");
+
+        emit NewTermsProposed(
+            refinanceCommitment = refinanceCommitment_ = calls_.length != uint256(0)
+                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
+                : bytes32(0),
+            refinancer_,
+            deadline_,
+            calls_
         );
     }
 
@@ -389,6 +485,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         normalDefaultDate_   = _getNormalDefaultDate(normalDueDate_, gracePeriod);
     }
 
+    function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        internal pure returns (bytes32 refinanceCommitment_)
+    {
+        return keccak256(abi.encode(refinancer_, deadline_, calls_));
+    }
+
     /**************************************************************************************************************************************/
     /*** Internal Pure Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
@@ -447,6 +549,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         proRatedAmount_ = (amount_ * rate_ * interval_) / (365 days * HUNDRED_PERCENT);
     }
 
+    function _int256(uint256 input_) internal pure returns (int256 output_) {
+        require(input_ <= uint256(type(int256).max), "ML:INT256_CAST");
+        output_ = int256(input_);
+    }
+
     function _maxDate(uint40 a_, uint40 b_) internal pure returns (uint40 max_) {
         max_ = a_ == 0 ? b_ : (b_ == 0 ? a_ : (a_ > b_ ? a_ : b_));
     }
@@ -457,6 +564,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function _minDate(uint40 a_, uint40 b_, uint40 c_) internal pure returns (uint40 min_) {
         min_ = _minDate(a_, _minDate(b_, c_));
+    }
+
+    function _uint256(int256 input_) internal pure returns (uint256 output_) {
+        require(input_ > 0, "ML:INT256_CAST");
+        output_ = uint256(input_);
     }
 
 }

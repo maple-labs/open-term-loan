@@ -15,14 +15,16 @@ abstract contract MapleLoanStorage is IMapleLoanStorage {
     address public override pendingBorrower;  // The address of the pendingBorrower, the only address that can accept the borrower role.
     address public override pendingLender;    // The address of the pendingLender, the only address that can accept the lender role.
 
+    bytes32 public override refinanceCommitment;  // The commitment hash of the refinance proposal.
+
     uint32 public override gracePeriod;      // The number of seconds a payment can be late.
     uint32 public override noticePeriod;     // The number of seconds after a loan is called after which the borrower can be considered in default.
     uint32 public override paymentInterval;  // The number of seconds between payments.
 
-    uint40 public override dateCalled;
-    uint40 public override dateFunded;
-    uint40 public override dateImpaired;
-    uint40 public override datePaid;
+    uint40 public override dateCalled;    // The date the loan was called.
+    uint40 public override dateFunded;    // The date the loan was funded.
+    uint40 public override dateImpaired;  // The date the loan was impaired.
+    uint40 public override datePaid;      // The date the loan was paid.
 
     uint256 public override calledPrincipal;  // The amount of principal yet to be returned to satisfy the loan call.
     uint256 public override principal;        // The amount of principal yet to be paid down.
