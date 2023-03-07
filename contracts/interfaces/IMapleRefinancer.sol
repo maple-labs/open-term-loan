@@ -9,6 +9,12 @@ interface IMapleRefinancer {
     /**************************************************************************************************************************************/
 
     /**
+     *  @dev   The value for the service fee rate for the PoolDelegate (1e18 units).
+     *  @param delegateServiceFeeRate_ The new value for delegateServiceFeeRate.
+     */
+    event DelegateServiceFeeRateSet(uint64 delegateServiceFeeRate_);
+
+    /**
      *  @dev   A new value for gracePeriod has been set.
      *  @param gracePeriod_ The new value for gracePeriod.
      */
@@ -71,6 +77,13 @@ interface IMapleRefinancer {
      *  @param amount_ The amount of which the value will increase by.
      */
     function increasePrincipal(uint256 amount_) external;
+
+    /**
+     *  @dev   Function to set the delegateServiceFeeRate during a refinance.
+     *         The rate is denominated in 1e18 units.
+     *  @param delegateServiceFeeRate_ The new value for delegateServiceFeeRate.
+     */
+    function setDelegateServiceFeeRate(uint64 delegateServiceFeeRate_) external;
 
     /**
      *  @dev   Function to set the gracePeriod during a refinance.

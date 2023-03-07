@@ -37,6 +37,10 @@ contract MapleRefinancer is IMapleRefinancer, MapleLoanStorage {
         emit PrincipalIncreased(amount_);
     }
 
+    function setDelegateServiceFeeRate(uint64 delegateServiceFeeRate_) external override {
+        emit DelegateServiceFeeRateSet(delegateServiceFeeRate = delegateServiceFeeRate_);
+    }
+
     function setGracePeriod(uint32 gracePeriod_) external override {
         emit GracePeriodSet(gracePeriod = gracePeriod_);
     }
