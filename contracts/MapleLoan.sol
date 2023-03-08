@@ -420,9 +420,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint40 startDate_      = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
 
         // "Current" interval and late interval respectively.
-        ( uint32 interval_, uint32 lateInterval_ ) = timestamp_ > paymentDueDate_
-            ? ( uint32(paymentDueDate_ - startDate_), uint32(timestamp_ - paymentDueDate_) )
-            : ( uint32(timestamp_      - startDate_), 0 );
+        ( uint32 interval_, uint32 lateInterval_ ) =
+            ( uint32(timestamp_ - startDate_), timestamp_ > paymentDueDate_ ? uint32(timestamp_ - paymentDueDate_) : 0 );
 
         ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = _getPaymentBreakdown(
             principal,
@@ -535,13 +534,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         internal pure returns (uint256 interest_, uint256 lateInterest_, uint256 delegateServiceFee_, uint256 platformServiceFee_)
     {
         interest_           = _getProRatedAmount(principal_, interestRate_,           interval_);
-        delegateServiceFee_ = _getProRatedAmount(principal_, delegateServiceFeeRate_, interval_ + lateInterval_);
-        platformServiceFee_ = _getProRatedAmount(principal_, platformServiceFeeRate_, interval_ + lateInterval_);
+        delegateServiceFee_ = _getProRatedAmount(principal_, delegateServiceFeeRate_, interval_);
+        platformServiceFee_ = _getProRatedAmount(principal_, platformServiceFeeRate_, interval_);
 
         if (lateInterval_ == 0) return (interest_, 0, delegateServiceFee_, platformServiceFee_);
 
         lateInterest_ =
-            _getProRatedAmount(principal_, interestRate_ + lateInterestPremium_, lateInterval_) +
+            _getProRatedAmount(principal_, lateInterestPremium_, lateInterval_) +
             (principal_ * lateFeeRate_ / HUNDRED_PERCENT);
     }
 

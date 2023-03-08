@@ -56,22 +56,19 @@ contract PaymentBreakdownTests is Test, Utils {
 
         uint256 paymentDueDate = dateFunded + paymentInterval;
 
-        // If late, `currentInterval` is the `paymentInterval` and `lateInterval` is time passed now, else  `currentInterval` is time since funding.
         ( uint256 currentInterval, uint256 lateInterval ) =
-            block.timestamp > paymentDueDate
-                ? ( paymentInterval,              block.timestamp - paymentDueDate )
-                : ( block.timestamp - dateFunded, 0                                );
+            ( block.timestamp - dateFunded, block.timestamp > paymentDueDate ? block.timestamp - paymentDueDate : 0);
 
         expectedInterest     = (principal * interestRate * currentInterval) / (365 days * HUNDRED_PERCENT);
         expectedLateInterest = lateInterval != 0
             ?
                 (
-                    ((principal * (interestRate + lateInterestPremium) * lateInterval) / 365 days) + (principal * lateFeeRate)
+                    ((principal * lateInterestPremium * lateInterval) / 365 days) + (principal * lateFeeRate)
                 ) / HUNDRED_PERCENT
             : 0;
 
-        expectedDelegateServiceFee = (principal * delegateServiceFeeRate * (currentInterval + lateInterval)) / (365 days * HUNDRED_PERCENT);
-        expectedPlatformServiceFee = (principal * platformServiceFeeRate * (currentInterval + lateInterval)) / (365 days * HUNDRED_PERCENT);
+        expectedDelegateServiceFee = (principal * delegateServiceFeeRate * currentInterval) / (365 days * HUNDRED_PERCENT);
+        expectedPlatformServiceFee = (principal * platformServiceFeeRate * currentInterval) / (365 days * HUNDRED_PERCENT);
 
         assertEq(interest, expectedInterest);
 
@@ -173,8 +170,8 @@ contract PaymentBreakdownTests is Test, Utils {
 
         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
-        assertEq(interest,           100_000e6);  // 1 year at 10% interest
-        assertEq(lateInterest,       15_000e6);   // 0.1 years at (10% + 5%) interest (15_000e6)
+        assertEq(interest,           110_000e6);  // 1.1 year at 10% interest
+        assertEq(lateInterest,       5_000e6);    // 0.1 years at (5%) interest (5_000e6)
         assertEq(delegateServiceFee, 11_000e6);
         assertEq(platformServiceFee, 27_500e6);
     }
@@ -199,8 +196,8 @@ contract PaymentBreakdownTests is Test, Utils {
 
         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
-        assertEq(interest,           50_000e6);  // 0.5 years at 10% interest
-        assertEq(lateInterest,       19_000e6);  // 0.1 years at 10% interest (10_000e6) + 0.9% of flat fee (9_000e6)
+        assertEq(interest,           60_000e6);  // 0.6 years at 10% interest
+        assertEq(lateInterest,       9_000e6);   // 0.1 years at 10% interest (10_000e6) + 0.9% of flat fee (9_000e6)
         assertEq(delegateServiceFee, 6_000e6);
         assertEq(platformServiceFee, 15_000e6);
     }
@@ -227,8 +224,8 @@ contract PaymentBreakdownTests is Test, Utils {
 
         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
-        assertEq(interest,           50_000e6);  // 0.5 years at 10% interest
-        assertEq(lateInterest,       24_000e6);  // 0.1 years at (10% + 5%) interest (15_000e6) + 0.9% of flat fee (9_000e6)
+        assertEq(interest,           60_000e6);  // 0.6 years at 10% interest
+        assertEq(lateInterest,       14_000e6);  // 0.1 years at (5%) interest (5_000e6) + 0.9% of flat fee (9_000e6)
         assertEq(delegateServiceFee, 6_000e6);
         assertEq(platformServiceFee, 15_000e6);
     }
@@ -255,8 +252,8 @@ contract PaymentBreakdownTests is Test, Utils {
 
         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
 
-        assertEq(interest,           40_000e6);  // 1,000,000 * 8% * 1/2
-        assertEq(lateInterest,       41_500e6);  // 1,000,000 * (8+5)% * 1/4 + 1,000,000 * 0.9%
+        assertEq(interest,           60_000e6);  // 1,000,000 * 8% * 3/4
+        assertEq(lateInterest,       21_500e6);  // 1,000,000 * 5% * 1/4 + 1,000,000 * 0.9%
         assertEq(delegateServiceFee, 11_250e6);  // 1,000,000 * 1.5% * 3/4
         assertEq(platformServiceFee, 18_750e6);  // 1,000,000 * 2.5% * 3/4
     }
