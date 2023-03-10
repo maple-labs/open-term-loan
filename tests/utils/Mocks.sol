@@ -5,28 +5,6 @@ import { Test } from "../../modules/forge-std/src/Test.sol";
 
 import { MockERC20 } from "../../modules/erc20/contracts/test/mocks/MockERC20.sol";
 
-contract MockFactory {
-
-    address public mapleGlobals;
-
-    constructor(address mapleGlobals_) {
-        mapleGlobals = mapleGlobals_;
-    }
-
-}
-
-contract MockGlobals {
-
-    bool public protocolPaused;
-
-    mapping(address => uint256) public platformServiceFeeRate;
-
-    function __setProtocolPaused(bool paused_) external {
-        protocolPaused = paused_;
-    }
-
-}
-
 // TODO: Eventually propose this to `forge-std`.
 contract Spied is Test {
 
@@ -57,7 +35,73 @@ contract Spied is Test {
 
 }
 
+contract MockFactory {
+
+    address public mapleGlobals;
+
+    mapping(address => bool) public isInstance;
+
+    function upgradeInstance(uint256 , bytes calldata arguments_) external {
+        address implementation = abi.decode(arguments_, (address));
+
+        ( bool success, ) = msg.sender.call(abi.encodeWithSignature("setImplementation(address)", implementation));
+
+        require(success);
+    }
+
+    function __setGlobals(address globals_) external {
+        mapleGlobals = globals_;
+    }
+
+    function __setIsInstance(address instance, bool isInstance_) external {
+        isInstance[instance] = isInstance_;
+    }
+
+}
+
+contract MockGlobals {
+
+    address public governor;
+
+    bool public protocolPaused;
+
+    mapping(address => bool) public isBorrower;
+    mapping(address => bool) public isPoolAsset;
+
+    mapping(address => uint256) public platformServiceFeeRate;
+
+    mapping(bytes32 => mapping(address => bool)) public isFactory;
+
+    function __setGovernor(address governor_) external {
+        governor = governor_;
+    }
+
+    function __setIsBorrower(address borrower_, bool isBorrower_) external {
+        isBorrower[borrower_] = isBorrower_;
+    }
+
+    function __setIsFactory(bytes32 factoryType_, address factory_, bool isFactory_) external {
+        isFactory[factoryType_][factory_] = isFactory_;
+    }
+
+    function __setIsPoolAsset(address poolAsset_, bool isPoolAsset_) external {
+        isPoolAsset[poolAsset_] = isPoolAsset_;
+    }
+
+    function __setProtocolPaused(bool paused_) external {
+        protocolPaused = paused_;
+    }
+
+    function __setPlatformServiceFeeRate(address poolManager_, uint256 platformServiceFeeRate_) external {
+        platformServiceFeeRate[poolManager_] = platformServiceFeeRate_;
+    }
+
+}
+
 contract MockLender is Spied {
+
+    address public factory;
+    address public poolManager;
 
     function claim(
         int256  principal_,
@@ -65,9 +109,15 @@ contract MockLender is Spied {
         uint256 delegateServiceFee_,
         uint256 platformServiceFee_,
         uint40  paymentDueDate_
-    ) external spied { }
+    ) external spied {}
 
-    function poolManager() external view returns (address poolManager_) { }
+    function __setFactory(address factory_) external {
+        factory = factory_;
+    }
+
+    function __setPoolManager(address poolManager_) external {
+        poolManager = poolManager_;
+    }
 
 }
 

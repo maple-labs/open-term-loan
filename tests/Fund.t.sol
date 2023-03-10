@@ -15,7 +15,7 @@ contract FundTests is Test, Utils {
 
     MapleLoanHarness loan = new MapleLoanHarness();
 
-    function setUp() public {
+    function setUp() external {
         loan.__setLender(lender);
     }
 

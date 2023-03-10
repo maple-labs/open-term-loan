@@ -19,12 +19,16 @@ contract ProposeNewTermsTests is Test, Utils {
 
     address lender     = makeAddr("lender");
     address refinancer = makeAddr("refinancer");
-    
+
     MockGlobals      globals = new MockGlobals();
     MapleLoanHarness loan    = new MapleLoanHarness();
 
-    function setUp() public {
-        loan.__setFactory(address(new MockFactory(address(globals))));
+    function setUp() external {
+        MockFactory mockFactory = new MockFactory();
+        
+        mockFactory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(mockFactory));
         loan.__setLender(lender);
     }
 

@@ -17,9 +17,13 @@ contract SkimTests is Test, Utils {
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockGlobals      globals = new MockGlobals();
 
-    function setUp() public {
+    function setUp() external {
+        MockFactory factory = new MockFactory();
+        
+        factory.__setGlobals(address(globals));
+
         loan.__setBorrower(borrower);
-        loan.__setFactory(address(new MockFactory(address(globals))));
+        loan.__setFactory(address(factory));
     }
 
     function test_skim_protocolPaused() external {

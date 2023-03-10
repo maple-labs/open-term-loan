@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { MapleLoan } from "../../contracts/MapleLoan.sol";
+import { MapleLoan            } from "../../contracts/MapleLoan.sol";
+import { MapleLoanInitializer } from "../../contracts/MapleLoanInitializer.sol";
 
 contract MapleLoanHarness is MapleLoan {
 
@@ -185,6 +186,21 @@ contract MapleLoanHarness is MapleLoan {
 
     function __minDate(uint256 a_, uint256 b_, uint256 c_) external pure returns (uint256 min_) {
         min_ = _minDate(uint40(a_), uint40(b_), uint40(c_));
+    }
+
+}
+
+contract MapleLoanInitializerHarness is MapleLoanInitializer {
+
+    function __initialize(
+        address borrower_,
+        address lender_,
+        address fundsAsset_,
+        uint256 principalRequested_,
+        uint32[3] memory termDetails_,
+        uint64[4] memory rates_
+    ) external {
+        _initialize(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }
 
 }

@@ -25,8 +25,12 @@ contract AcceptNewTermsFailure is Test, Utils {
     MapleRefinancer  refinancer = new MapleRefinancer();
     MockGlobals      globals    = new MockGlobals();
 
-    function setUp() public virtual {
-        loan.__setFactory(address(new MockFactory(address(globals))));
+    function setUp() external virtual {
+        MockFactory mockFactory = new MockFactory();
+
+        mockFactory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(mockFactory));
         loan.__setBorrower(borrower);
     }
 
@@ -120,11 +124,15 @@ contract AcceptNewTerms is Test, Utils {
     MockERC20        asset      = new MockERC20("Asset", "A", 6);
     MockLender       lender     = new MockLender();
 
-    function setUp() public virtual {
+    function setUp() external virtual {
         start = block.timestamp;
 
+        MockFactory mockFactory = new MockFactory();
+        
+        mockFactory.__setGlobals(address(globals));
+
         loan.__setBorrower(borrower);
-        loan.__setFactory(address(new MockFactory(address(globals))));
+        loan.__setFactory(address(mockFactory));
         loan.__setFundsAsset(address(asset));
         loan.__setInterestRate(interestRate);
         loan.__setLateFeeRate(lateFeeRate);

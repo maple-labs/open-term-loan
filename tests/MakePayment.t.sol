@@ -17,8 +17,12 @@ contract MakePaymentFailureTests is Test, Utils {
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockGlobals      globals = new MockGlobals();
 
-    function setUp() public virtual {
-        loan.__setFactory(address(new MockFactory(address(globals))));
+    function setUp() external {
+        MockFactory factory = new MockFactory();
+
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
     }
 
     function test_makePayment_protocolPaused() external {
@@ -103,9 +107,12 @@ contract MakePaymentSuccessTests is Test, Utils {
     MockGlobals      globals = new MockGlobals();
     MockLender       lender  = new MockLender();
 
-    function setUp() public {
-        loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
-        loan.__setFactory(address(new MockFactory(address(globals))));
+    function setUp() external {
+        MockFactory factory = new MockFactory();
+        
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
         loan.__setFundsAsset(address(asset));
         loan.__setGracePeriod(gracePeriod);
         loan.__setInterestRate(interestRate);

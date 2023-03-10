@@ -248,7 +248,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function callPrincipal(uint256 principalToReturn_) external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender,                                       "ML:C:NOT_LENDER");
         require(dateFunded != 0,                                            "ML:C:LOAN_INACTIVE");
-        require(dateCalled == 0,                                            "ML:C:ALREADY_CALLED");  // TODO: necessary?
+        require(dateCalled == 0,                                            "ML:C:ALREADY_CALLED");  // TODO: Remove, this is a LM decision.
         require(principalToReturn_ != 0 && principalToReturn_ <= principal, "ML:C:INVALID_AMOUNT");
 
         dateCalled = uint40(block.timestamp);
@@ -279,7 +279,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function impair() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:I:NOT_LENDER");
         require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
-        require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: necessary?
+        require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: Remove, this is a LM decision.
 
         dateImpaired = uint40(block.timestamp);
 
