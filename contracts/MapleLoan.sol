@@ -115,6 +115,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         datePaid = uint40(block.timestamp);
 
+        delete calledPrincipal;
         delete dateImpaired;
         delete dateCalled;
         delete refinanceCommitment;

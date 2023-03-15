@@ -161,10 +161,13 @@ contract AcceptNewTerms is Test, Utils {
 
         loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, calls)));
 
-        assertEq(loan.paymentInterval(), 1_000_000);
+        loan.__setCalledPrincipal(principal);
+
+        assertEq(loan.calledPrincipal(), principal);
         assertEq(loan.dateCalled(),      start + 1_200_000);
         assertEq(loan.dateImpaired(),    start + 1_200_000);
         assertEq(loan.datePaid(),        0);
+        assertEq(loan.paymentInterval(), 1_000_000);
         assertEq(loan.paymentDueDate(),  start + interval);
 
         (
@@ -185,11 +188,12 @@ contract AcceptNewTerms is Test, Utils {
         vm.prank(borrower);
         loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
 
-        assertEq(loan.paymentInterval(), 2_000_000);
+        assertEq(loan.calledPrincipal(), 0);
         assertEq(loan.dateCalled(),      0);
         assertEq(loan.dateImpaired(),    0);
         assertEq(loan.datePaid(),        start + (interval / 2));
         assertEq(loan.paymentDueDate(),  start + (interval / 2) + 2_000_000);
+        assertEq(loan.paymentInterval(), 2_000_000);
     }
 
     function test_acceptNewTerms_principalIncrease() external {
