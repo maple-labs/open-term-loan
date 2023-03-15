@@ -31,7 +31,6 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 */
 
 // TODO: Use error codes.
-// TODO: Consider safe casting from uint256 to uint32/uint40.
 // TODO: Update platformServiceFeeRate on refinance.
 
 /// @title MapleLoan implements an open term loan, and is intended to be proxied.
@@ -113,7 +112,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         ) = paymentBreakdown(block.timestamp);
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
-        datePaid = uint40(block.timestamp);
+        datePaid = _uint40(block.timestamp);
 
         delete calledPrincipal;
         delete dateImpaired;
@@ -196,7 +195,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             delete dateImpaired;
             delete calledPrincipal;
 
-            datePaid = uint40(block.timestamp);
+            datePaid = _uint40(block.timestamp);
 
             if (principalToReturn_ != 0) {
                 emit PrincipalReturned(principalToReturn_, principal -= principalToReturn_);
@@ -252,7 +251,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(dateCalled == 0,                                            "ML:C:ALREADY_CALLED");  // TODO: Remove, this is a LM decision.
         require(principalToReturn_ != 0 && principalToReturn_ <= principal, "ML:C:INVALID_AMOUNT");
 
-        dateCalled = uint40(block.timestamp);
+        dateCalled = _uint40(block.timestamp);
 
         emit PrincipalCalled(
             calledPrincipal = principalToReturn_,
@@ -266,7 +265,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(dateFunded == 0,      "ML:F:LOAN_ACTIVE");
         require(principal != 0,       "ML:F:LOAN_CLOSED");
 
-        dateFunded = uint40(block.timestamp);
+        dateFunded = _uint40(block.timestamp);
 
         emit Funded(
             fundsLent_      = principal,
@@ -282,7 +281,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
         require(dateImpaired == 0,    "ML:I:ALREADY_IMPAIRED");  // TODO: Remove, this is a LM decision.
 
-        dateImpaired = uint40(block.timestamp);
+        dateImpaired = _uint40(block.timestamp);
 
         emit Impaired(
             paymentDueDate_ = paymentDueDate(),
@@ -422,12 +421,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         // "Current" interval and late interval respectively.
         ( uint32 interval_, uint32 lateInterval_ ) =
-            ( uint32(timestamp_ - startDate_), timestamp_ > paymentDueDate_ ? uint32(timestamp_ - paymentDueDate_) : 0 );
+            ( _uint32(timestamp_ - startDate_), timestamp_ > paymentDueDate_ ? _uint32(timestamp_ - paymentDueDate_) : 0 );
 
         ( interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = _getPaymentBreakdown(
             principal,
             interestRate,
-            lateInterestPremium,
+            lateInterestPremiumRate,
             lateFeeRate,
             delegateServiceFeeRate,
             platformServiceFeeRate,
@@ -464,7 +463,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         delete interestRate;
         delete lateFeeRate;
-        delete lateInterestPremium;
+        delete lateInterestPremiumRate;
     }
 
     /**************************************************************************************************************************************/
@@ -525,7 +524,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function _getPaymentBreakdown(
         uint256 principal_,
         uint256 interestRate_,
-        uint256 lateInterestPremium_,
+        uint256 lateInterestPremiumRate_,
         uint256 lateFeeRate_,
         uint256 delegateServiceFeeRate_,
         uint256 platformServiceFeeRate_,
@@ -541,7 +540,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         if (lateInterval_ == 0) return (interest_, 0, delegateServiceFee_, platformServiceFee_);
 
         lateInterest_ =
-            _getProRatedAmount(principal_, lateInterestPremium_, lateInterval_) +
+            _getProRatedAmount(principal_, lateInterestPremiumRate_, lateInterval_) +
             (principal_ * lateFeeRate_ / HUNDRED_PERCENT);
     }
 
@@ -564,6 +563,16 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     function _minDate(uint40 a_, uint40 b_, uint40 c_) internal pure returns (uint40 min_) {
         min_ = _minDate(a_, _minDate(b_, c_));
+    }
+
+    function _uint32(uint256 input_) internal pure returns (uint32 output_) {
+        require(input_ <= type(uint32).max, "ML:UINT256_OOB_FOR_UINT32");
+        output_ = uint32(input_);
+    }
+
+    function _uint40(uint256 input_) internal pure returns (uint40 output_) {
+        require(input_ <= type(uint40).max, "ML:UINT256_OOB_FOR_UINT40");
+        output_ = uint40(input_);
     }
 
     function _uint256(int256 input_) internal pure returns (uint256 output_) {

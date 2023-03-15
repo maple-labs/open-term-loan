@@ -91,12 +91,12 @@ contract MakePaymentSuccessTests is Test, Utils {
     uint256 constant gracePeriod  = 1 days;
     uint256 constant noticePeriod = 2 days;
 
-    uint64  constant delegateServiceFeeRate = 0.01e18;
-    uint64  constant interestRate           = 0.10e18;
-    uint64  constant lateFeeRate            = 0.01e18;
-    uint64  constant lateInterestPremium    = 0.05e18;
-    uint64  constant platformServiceFeeRate = 0.02e18;
-    uint256 constant principal              = 100_000e6;
+    uint64  constant delegateServiceFeeRate  = 0.01e18;
+    uint64  constant interestRate            = 0.10e18;
+    uint64  constant lateFeeRate             = 0.01e18;
+    uint64  constant lateInterestPremiumRate = 0.05e18;
+    uint64  constant platformServiceFeeRate  = 0.02e18;
+    uint256 constant principal               = 100_000e6;
 
     address account = makeAddr("account");
 
@@ -117,7 +117,7 @@ contract MakePaymentSuccessTests is Test, Utils {
         loan.__setGracePeriod(gracePeriod);
         loan.__setInterestRate(interestRate);
         loan.__setLateFeeRate(lateFeeRate);
-        loan.__setLateInterestPremium(lateInterestPremium);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
         loan.__setLender(address(lender));
         loan.__setNoticePeriod(noticePeriod);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
@@ -239,16 +239,16 @@ contract MakePaymentSuccessTests is Test, Utils {
 
         if (principalToReturn == principal) {
             // If the principal was returned entirely, the loan is closed, and the following variables would have been deleted.
-            assertEq(loan.gracePeriod(),         0);
-            assertEq(loan.noticePeriod(),        0);
-            assertEq(loan.paymentInterval(),     0);
-            assertEq(loan.datePaid(),            0);
-            assertEq(loan.dateFunded(),          0);
-            assertEq(loan.principal(),           0);
-            assertEq(loan.interestRate(),        0);
-            assertEq(loan.lateFeeRate(),         0);
-            assertEq(loan.lateInterestPremium(), 0);
-            assertEq(loan.paymentDueDate(),      0);
+            assertEq(loan.gracePeriod(),             0);
+            assertEq(loan.noticePeriod(),            0);
+            assertEq(loan.paymentInterval(),         0);
+            assertEq(loan.datePaid(),                0);
+            assertEq(loan.dateFunded(),              0);
+            assertEq(loan.principal(),               0);
+            assertEq(loan.interestRate(),            0);
+            assertEq(loan.lateFeeRate(),             0);
+            assertEq(loan.lateInterestPremiumRate(), 0);
+            assertEq(loan.paymentDueDate(),          0);
         } else {
             // For every other payment, the `datePaid` and `paymentDueDate` would be updated.
             assertEq(loan.datePaid(),       uint40(datePaid));

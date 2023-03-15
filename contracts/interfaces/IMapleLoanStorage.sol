@@ -66,7 +66,7 @@ interface IMapleLoanStorage {
     /**
      *  @dev The premium over the regular interest rate applied when paying late.
      */
-    function lateInterestPremium() external view returns (uint64 lateInterestPremium_);
+    function lateInterestPremiumRate() external view returns (uint64 lateInterestPremiumRate_);
 
     /**
      *  @dev The lender of the Loan.

@@ -61,7 +61,7 @@ contract RepossessTests is Test, Utils {
 
         loan.__setInterestRate(1);
         loan.__setLateFeeRate(1);
-        loan.__setLateInterestPremium(1);
+        loan.__setLateInterestPremiumRate(1);
 
         loan.__setBorrower(borrower);
         loan.__setFundsAsset(asset);
@@ -82,9 +82,9 @@ contract RepossessTests is Test, Utils {
         assertEq(loan.calledPrincipal(),     0);
         assertEq(loan.principal(),           0);
 
-        assertEq(loan.interestRate(),        0);
-        assertEq(loan.lateFeeRate(),         0);
-        assertEq(loan.lateInterestPremium(), 0);
+        assertEq(loan.interestRate(),            0);
+        assertEq(loan.lateFeeRate(),             0);
+        assertEq(loan.lateInterestPremiumRate(), 0);
 
         assertEq(loan.borrower(),        borrower);
         assertEq(loan.fundsAsset(),      asset);

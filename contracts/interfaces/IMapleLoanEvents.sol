@@ -39,7 +39,7 @@ interface IMapleLoanEvents {
      *                                 [0]: delegateServiceFeeRate,
      *                                 [1]: interestRate,
      *                                 [2]: lateFeeRate,
-     *                                 [3]: lateInterestPremium
+     *                                 [3]: lateInterestPremiumRate
      */
     event Initialized(
         address indexed borrower_,

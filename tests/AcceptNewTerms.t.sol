@@ -108,11 +108,11 @@ contract AcceptNewTerms is Test, Utils {
     uint256 constant noticePeriod = 2 days;
     uint256 constant interval     = 1_000_000;
 
-    uint256 constant interestRate        = 0.10e18;
-    uint256 constant lateFeeRate         = 0.01e18;
-    uint256 constant lateInterestPremium = 0.05e18;
-    uint256 constant principal           = 1_000_000e6;
-    uint256 constant principalDiff       = 100_000e6;
+    uint256 constant interestRate            = 0.10e18;
+    uint256 constant lateFeeRate             = 0.01e18;
+    uint256 constant lateInterestPremiumRate = 0.05e18;
+    uint256 constant principal               = 1_000_000e6;
+    uint256 constant principalDiff           = 100_000e6;
 
     address borrower = makeAddr("borrower");
 
@@ -136,7 +136,7 @@ contract AcceptNewTerms is Test, Utils {
         loan.__setFundsAsset(address(asset));
         loan.__setInterestRate(interestRate);
         loan.__setLateFeeRate(lateFeeRate);
-        loan.__setLateInterestPremium(lateInterestPremium);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
         loan.__setLender(address(lender));
         loan.__setPaymentInterval(interval);
         loan.__setPrincipal(principal);

@@ -30,22 +30,22 @@ contract PaymentBreakdownTests is Test, Utils {
         uint256 principal,
         uint256 interestRate,
         uint256 lateFeeRate,
-        uint256 lateInterestPremium,
+        uint256 lateInterestPremiumRate,
         uint256 delegateServiceFeeRate,
         uint256 platformServiceFeeRate
     ) external {
-        paymentInterval        = bound(paymentInterval,        1 days,                     365 days);
-        dateFunded             = bound(dateFunded,             block.timestamp - 365 days, block.timestamp);
-        principal              = bound(principal,              1e6,                        1e30);
-        interestRate           = bound(interestRate,           0,                          1.00e18);
-        lateFeeRate            = bound(lateFeeRate,            0,                          0.10e18);
-        lateInterestPremium    = bound(lateInterestPremium,    0,                          0.50e18);
-        delegateServiceFeeRate = bound(delegateServiceFeeRate, 0,                          1.00e18);
-        platformServiceFeeRate = bound(platformServiceFeeRate, 0,                          1.00e18);
+        paymentInterval         = bound(paymentInterval,         1 days,                     365 days);
+        dateFunded              = bound(dateFunded,              block.timestamp - 365 days, block.timestamp);
+        principal               = bound(principal,               1e6,                        1e30);
+        interestRate            = bound(interestRate,            0,                          1.00e18);
+        lateFeeRate             = bound(lateFeeRate,             0,                          0.10e18);
+        lateInterestPremiumRate = bound(lateInterestPremiumRate, 0,                          0.50e18);
+        delegateServiceFeeRate  = bound(delegateServiceFeeRate,  0,                          1.00e18);
+        platformServiceFeeRate  = bound(platformServiceFeeRate,  0,                          1.00e18);
 
         loan.__setDateFunded(dateFunded);
         loan.__setLateFeeRate(uint64(lateFeeRate));
-        loan.__setLateInterestPremium(uint64(lateInterestPremium));
+        loan.__setLateInterestPremiumRate(uint64(lateInterestPremiumRate));
         loan.__setPaymentInterval(paymentInterval);
         loan.__setPrincipal(principal);
         loan.__setInterestRate(uint64(interestRate));
@@ -63,7 +63,7 @@ contract PaymentBreakdownTests is Test, Utils {
         expectedLateInterest = lateInterval != 0
             ?
                 (
-                    ((principal * lateInterestPremium * lateInterval) / 365 days) + (principal * lateFeeRate)
+                    ((principal * lateInterestPremiumRate * lateInterval) / 365 days) + (principal * lateFeeRate)
                 ) / HUNDRED_PERCENT
             : 0;
 
@@ -152,16 +152,16 @@ contract PaymentBreakdownTests is Test, Utils {
 
     // Full year at 10% interest, 0.1 years late at (10% + 5%) interest (full year for easy validation)
     function test_paymentBreakdown_fixture4() external {
-        uint256 paymentInterval        = 365 days;
-        uint256 dateFunded             = block.timestamp - 365 days - (365 days / 10);
-        uint256 principal              = 1_000_000e6;
-        uint256 interestRate           = 0.10e18;
-        uint256 lateInterestPremium    = 0.05e18;
-        uint256 delegateServiceFeeRate = 0.01e18;
-        uint256 platformServiceFeeRate = 0.025e18;
+        uint256 paymentInterval         = 365 days;
+        uint256 dateFunded              = block.timestamp - 365 days - (365 days / 10);
+        uint256 principal               = 1_000_000e6;
+        uint256 interestRate            = 0.10e18;
+        uint256 lateInterestPremiumRate = 0.05e18;
+        uint256 delegateServiceFeeRate  = 0.01e18;
+        uint256 platformServiceFeeRate  = 0.025e18;
 
         loan.__setDateFunded(dateFunded);
-        loan.__setLateInterestPremium(lateInterestPremium);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
         loan.__setPaymentInterval(paymentInterval);
         loan.__setPrincipal(principal);
         loan.__setInterestRate(interestRate);
@@ -204,18 +204,18 @@ contract PaymentBreakdownTests is Test, Utils {
 
     // Half year at 10% interest, 0.1 years late at (10% + 5%) interest + 0.9% flat fee on principal
     function test_paymentBreakdown_fixture6() external {
-        uint256 paymentInterval        = 365 days / 2;
-        uint256 dateFunded             = block.timestamp - (365 days / 2) - (365 days / 10);
-        uint256 principal              = 1_000_000e6;
-        uint256 interestRate           = 0.10e18;
-        uint256 lateFeeRate            = 0.009e18;
-        uint256 lateInterestPremium    = 0.05e18;
-        uint256 delegateServiceFeeRate = 0.01e18;
-        uint256 platformServiceFeeRate = 0.025e18;
+        uint256 paymentInterval         = 365 days / 2;
+        uint256 dateFunded              = block.timestamp - (365 days / 2) - (365 days / 10);
+        uint256 principal               = 1_000_000e6;
+        uint256 interestRate            = 0.10e18;
+        uint256 lateFeeRate             = 0.009e18;
+        uint256 lateInterestPremiumRate = 0.05e18;
+        uint256 delegateServiceFeeRate  = 0.01e18;
+        uint256 platformServiceFeeRate  = 0.025e18;
 
         loan.__setDateFunded(dateFunded);
         loan.__setLateFeeRate(lateFeeRate);
-        loan.__setLateInterestPremium(lateInterestPremium);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
         loan.__setPaymentInterval(paymentInterval);
         loan.__setPrincipal(principal);
         loan.__setInterestRate(interestRate);
@@ -232,18 +232,18 @@ contract PaymentBreakdownTests is Test, Utils {
 
     // Half year at 8% interest, 0.25 years late at (10% + 5%) interest + 0.9% flat fee on principal + 1.5%/2.5% service fee rates.
     function test_paymentBreakdown_fixture7() external {
-        uint256 paymentInterval        = 365 days / 2;
-        uint256 dateFunded             = block.timestamp - paymentInterval * 3 / 2;
-        uint256 principal              = 1_000_000e6;
-        uint256 interestRate           = 0.08e18;
-        uint256 lateFeeRate            = 0.009e18;
-        uint256 lateInterestPremium    = 0.05e18;
-        uint256 delegateServiceFeeRate = 0.015e18;
-        uint256 platformServiceFeeRate = 0.025e18;
+        uint256 paymentInterval         = 365 days / 2;
+        uint256 dateFunded              = block.timestamp - paymentInterval * 3 / 2;
+        uint256 principal               = 1_000_000e6;
+        uint256 interestRate            = 0.08e18;
+        uint256 lateFeeRate             = 0.009e18;
+        uint256 lateInterestPremiumRate = 0.05e18;
+        uint256 delegateServiceFeeRate  = 0.015e18;
+        uint256 platformServiceFeeRate  = 0.025e18;
 
         loan.__setDateFunded(dateFunded);
         loan.__setLateFeeRate(uint64(lateFeeRate));
-        loan.__setLateInterestPremium(uint64(lateInterestPremium));
+        loan.__setLateInterestPremiumRate(uint64(lateInterestPremiumRate));
         loan.__setPaymentInterval(paymentInterval);
         loan.__setPrincipal(principal);
         loan.__setInterestRate(uint64(interestRate));

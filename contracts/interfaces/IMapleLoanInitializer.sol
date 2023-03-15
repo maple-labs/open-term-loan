@@ -19,7 +19,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                                  [0]: delegateServiceFeeRate,
      *                                  [1]: interestRate,
      *                                  [2]: lateFeeRate,
-     *                                  [3]: lateInterestPremium
+     *                                  [3]: lateInterestPremiumRate
      *  @return encodedArguments_  The encoded arguments for initializing a loan.
      */
     function encodeArguments(
@@ -46,7 +46,7 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *                                  [0]: delegateServiceFeeRate,
      *                                  [1]: interestRate,
      *                                  [2]: lateFeeRate,
-     *                                  [3]: lateInterestPremium
+     *                                  [3]: lateInterestPremiumRate
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (

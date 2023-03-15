@@ -16,10 +16,10 @@ contract InitializerTests is Test {
     uint32 validNoticePeriod    = 1;
     uint32 validPaymentInterval = 1;
 
-    uint64 validDelegateServiceFeeRate = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validInterestRate           = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validLateFeeRate            = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validLateInterestPremium    = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
+    uint64 validDelegateServiceFeeRate  = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
+    uint64 validInterestRate            = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
+    uint64 validLateFeeRate             = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
+    uint64 validLateInterestPremiumRate = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
 
     uint256 validPrincipalRequested = 1;
 
@@ -60,7 +60,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             0,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -72,7 +72,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, 0, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -84,7 +84,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, 0],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -97,7 +97,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -110,7 +110,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -123,7 +123,7 @@ contract InitializerTests is Test {
             makeAddr("invalidFundsAsset"),
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -136,7 +136,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -151,7 +151,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -167,7 +167,7 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
     }
 
@@ -185,21 +185,21 @@ contract InitializerTests is Test {
             validFundsAsset,
             validPrincipalRequested,
             [validGracePeriod, validNoticePeriod, validPaymentInterval],
-            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremium]
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
         );
 
-        assertEq(initializer.borrower(),               validBorrower);
-        assertEq(initializer.lender(),                 validLender);
-        assertEq(initializer.fundsAsset(),             validFundsAsset);
-        assertEq(initializer.principal(),              validPrincipalRequested);
-        assertEq(initializer.gracePeriod(),            validGracePeriod);
-        assertEq(initializer.noticePeriod(),           validNoticePeriod);
-        assertEq(initializer.paymentInterval(),        validPaymentInterval);
-        assertEq(initializer.delegateServiceFeeRate(), validDelegateServiceFeeRate);
-        assertEq(initializer.interestRate(),           validInterestRate);
-        assertEq(initializer.lateFeeRate(),            validLateFeeRate);
-        assertEq(initializer.lateInterestPremium(),    validLateInterestPremium);
-        assertEq(initializer.platformServiceFeeRate(), validPlatformServiceFeeRate * 1e12);
+        assertEq(initializer.borrower(),                validBorrower);
+        assertEq(initializer.lender(),                  validLender);
+        assertEq(initializer.fundsAsset(),              validFundsAsset);
+        assertEq(initializer.principal(),               validPrincipalRequested);
+        assertEq(initializer.gracePeriod(),             validGracePeriod);
+        assertEq(initializer.noticePeriod(),            validNoticePeriod);
+        assertEq(initializer.paymentInterval(),         validPaymentInterval);
+        assertEq(initializer.delegateServiceFeeRate(),  validDelegateServiceFeeRate);
+        assertEq(initializer.interestRate(),            validInterestRate);
+        assertEq(initializer.lateFeeRate(),             validLateFeeRate);
+        assertEq(initializer.lateInterestPremiumRate(), validLateInterestPremiumRate);
+        assertEq(initializer.platformServiceFeeRate(),  validPlatformServiceFeeRate * 1e12);
     }
 
 }
