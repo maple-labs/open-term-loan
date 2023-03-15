@@ -30,6 +30,8 @@ contract ProposeNewTermsTests is Test, Utils {
 
         loan.__setFactory(address(mockFactory));
         loan.__setLender(lender);
+
+        globals.__setIsInstanceOf("OT_REFINANCER", refinancer, true);
     }
 
     // TODO: Add pause test suite for all functions.
@@ -46,6 +48,14 @@ contract ProposeNewTermsTests is Test, Utils {
 
         vm.prank(lender);
         loan.proposeNewTerms(refinancer, block.timestamp, new bytes[](0));
+    }
+
+    function test_proposeNewTerms_invalidRefinancer() external {
+        globals.__setIsInstanceOf("OT_REFINANCER", refinancer, false);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:PNT:INVALID_REFINANCER");
+        loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](0));
     }
 
     function test_proposeNewTerms_success() external {

@@ -71,6 +71,7 @@ contract MockGlobals {
     mapping(address => uint256) public platformServiceFeeRate;
 
     mapping(bytes32 => mapping(address => bool)) public isFactory;
+    mapping(bytes32 => mapping(address => bool)) public isInstanceOf;
 
     function __setGovernor(address governor_) external {
         governor = governor_;
@@ -82,6 +83,10 @@ contract MockGlobals {
 
     function __setIsFactory(bytes32 factoryType_, address factory_, bool isFactory_) external {
         isFactory[factoryType_][factory_] = isFactory_;
+    }
+
+    function __setIsInstanceOf(bytes32 instanceType_, address instance_, bool isinstance_) external {
+        isInstanceOf[instanceType_][instance_] = isinstance_;
     }
 
     function __setIsPoolAsset(address poolAsset_, bool isPoolAsset_) external {
