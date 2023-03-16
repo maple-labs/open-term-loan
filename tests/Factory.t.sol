@@ -82,4 +82,19 @@ contract FactoryTests is Test {
         assertTrue( factory.isLoan(loan));
     }
 
+    function test_implementation_getter() external {
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            borrower,
+            address(lender),
+            fundsAsset,
+            1,
+            [uint32(1), 1, 1],
+            [uint64(1), 1, 1, 1]
+        );
+
+        MapleLoan loan = MapleLoan(factory.createInstance(arguments, keccak256(abi.encode(msg.sender))));
+
+        assertEq(loan.implementation(), implementation);
+    }
+
 }
