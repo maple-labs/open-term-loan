@@ -291,11 +291,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(msg.sender == lender,                                                    "ML:PNT:NOT_LENDER");
         require(block.timestamp <= deadline_,                                            "ML:PNT:INVALID_DEADLINE");
         require(IMapleGlobalsLike(globals()).isInstanceOf("OT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
+        require(calls_.length > 0,                                                       "ML:PNT:EMPTY_CALLS");
 
         emit NewTermsProposed(
-            refinanceCommitment = refinanceCommitment_ = calls_.length != uint256(0)
-                ? _getRefinanceCommitment(refinancer_, deadline_, calls_)
-                : bytes32(0),
+            refinanceCommitment = refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_),
             refinancer_,
             deadline_,
             calls_
@@ -353,6 +352,21 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
     /*** Miscellaneous Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
+
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+    {
+        require((msg.sender == borrower) || (msg.sender == lender), "ML:RNT:NO_AUTH");
+
+        require(
+            refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
+            "ML:RNT:COMMITMENT_MISMATCH"
+        );
+
+        delete refinanceCommitment;
+
+        emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
+    }
 
     // TODO: Consider giving the governor the sole access to skim.
     function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {

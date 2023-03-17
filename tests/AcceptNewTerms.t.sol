@@ -34,6 +34,13 @@ contract AcceptNewTermsFailure is Test, Utils {
         loan.__setBorrower(borrower);
     }
 
+    function test_acceptNewTerms_protocolPaused() external {
+        globals.__setProtocolPaused(true);
+
+        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
+    }
+
     function test_acceptNewTerms_notBorrower() external {
         vm.expectRevert("ML:ANT:NOT_BORROWER");
         loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
@@ -128,7 +135,7 @@ contract AcceptNewTerms is Test, Utils {
         start = block.timestamp;
 
         MockFactory mockFactory = new MockFactory();
-        
+
         mockFactory.__setGlobals(address(globals));
 
         loan.__setBorrower(borrower);

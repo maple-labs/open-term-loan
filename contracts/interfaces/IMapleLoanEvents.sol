@@ -71,7 +71,7 @@ interface IMapleLoanEvents {
      */
     event LenderAccepted(address indexed lender_);
 
-   /**
+    /**
      *  @dev   The terms of the refinance proposal were accepted.
      *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
      *  @param refinancer_          The address that will execute the refinance.
@@ -88,7 +88,16 @@ interface IMapleLoanEvents {
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-    
+
+    /**
+     *  @dev   The terms of the refinance proposal were rejected.
+     *  @param refinanceCommitment_ The hash of the refinancer, deadline, and calls proposed.
+     *  @param refinancer_          The address that will execute the refinance.
+     *  @param deadline_            The deadline for accepting the new terms.
+     *  @param calls_               The individual calls for the refinancer contract.
+     */
+    event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+
     /**
      *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
      *  @param principalReturned_  The amount of principal returned.

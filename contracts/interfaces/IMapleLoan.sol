@@ -74,6 +74,26 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
         );
 
     /**
+     *  @dev    Propose new terms for refinance.
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the proposed refinance agreement.
+     */
+    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
+
+    /**
+     *  @dev    Nullify the current proposed terms.
+     *  @param  refinancer_          The address of the refinancer contract.
+     *  @param  deadline_            The deadline for accepting the new terms.
+     *  @param  calls_               The encoded arguments to be passed to refinancer.
+     *  @return refinanceCommitment_ The hash of the rejected refinance agreement.
+     */
+    function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external returns (bytes32 refinanceCommitment_);
+
+    /**
      *  @dev    Remove the loan's called status.
      *  @return paymentDueDate_ The restored payment due date.
      *  @return defaultDate_    The date the loan will be in default.
@@ -165,15 +185,5 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
      *  @dev The timestamp of the due date of the next payment.
      */
     function paymentDueDate() external view returns (uint40 paymentDueDate_);
-
-    /**
-     *  @dev    Propose new terms for refinance.
-     *  @param  refinancer_          The address of the refinancer contract.
-     *  @param  deadline_            The deadline for accepting the new terms.
-     *  @param  calls_               The encoded arguments to be passed to refinancer.
-     *  @return refinanceCommitment_ The hash of the proposed refinance agreement.
-     */
-    function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external returns (bytes32 refinanceCommitment_);
 
 }
