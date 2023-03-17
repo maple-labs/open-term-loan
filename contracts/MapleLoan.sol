@@ -30,9 +30,6 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 */
 
-// TODO: Use error codes.
-// TODO: Update platformServiceFeeRate on refinance.
-
 /// @title MapleLoan implements an open term loan, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
@@ -146,7 +143,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         ILenderLike lender_ = ILenderLike(lender);
 
         // Globals stores rates as 1e6 but the loan needs it as 1e18.
-        // TODO: Revisit this and see if there is an better approach.
         platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()) * 1e12);
 
         lender_.claim(
