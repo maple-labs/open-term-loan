@@ -9,7 +9,7 @@ import { Utils }                    from "./utils/Utils.sol";
 
 contract ProposeNewTermsTests is Test, Utils {
 
-    // TODO: Revisit testing events.
+    event NewTermsProposed(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
     address lender     = makeAddr("lender");
     address refinancer = makeAddr("refinancer");
@@ -30,12 +30,12 @@ contract ProposeNewTermsTests is Test, Utils {
         globals.__setProtocolPaused(true);
 
         vm.expectRevert("ML:PROTOCOL_PAUSED");
-        loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](0));
+        loan.proposeNewTerms(address(0), 0, new bytes[](0));
     }
 
     function test_proposeNewTerms_notLender() external {
         vm.expectRevert("ML:PNT:NOT_LENDER");
-        loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](0));
+        loan.proposeNewTerms(address(0), 0, new bytes[](0));
     }
 
     function test_proposeNewTerms_invalidRefinancer() external {
@@ -69,7 +69,16 @@ contract ProposeNewTermsTests is Test, Utils {
         vm.prank(lender);
         loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](1));
 
-        assertEq(loan.refinanceCommitment(), keccak256(abi.encode(refinancer, block.timestamp + 1, new bytes[](1))));
+        bytes32 expectedRefinanceCommitment_ = keccak256(abi.encode(refinancer, block.timestamp + 1, new bytes[](1)));
+
+        vm.expectEmit();
+        emit NewTermsProposed(expectedRefinanceCommitment_, refinancer, block.timestamp + 1, new bytes[](1));
+
+        vm.prank(lender);
+        bytes32 refinanceCommitment_ = loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](1));
+
+        assertEq(refinanceCommitment_,       expectedRefinanceCommitment_);
+        assertEq(loan.refinanceCommitment(), expectedRefinanceCommitment_);
     }
 
 }

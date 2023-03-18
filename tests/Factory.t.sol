@@ -12,17 +12,17 @@ import { MockFactory, MockGlobals, MockLender } from "./utils/Mocks.sol";
 
 contract FactoryTests is Test {
 
-    MapleLoanFactory  factory;
-    MockGlobals       globals;
-    MockLender        lender;
-    MockFactory       lenderFactory;
-
     address borrower;
     address fundsAsset;
     address governor;
     address implementation;
     address initializer;
     address poolManager;
+
+    MapleLoanFactory factory;
+    MockFactory      lenderFactory;
+    MockGlobals      globals;
+    MockLender       lender;
 
     function setUp() external {
         borrower       = makeAddr("borrower");

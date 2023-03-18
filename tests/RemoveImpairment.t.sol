@@ -70,8 +70,9 @@ contract RemoveImpairmentTests is Test, Utils {
 
         uint256 expectedDefaultDate = minIgnoreZero(callDate, normalDate);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit ImpairmentRemoved(uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+
         vm.prank(lender);
         ( uint40 paymentDueDate, uint40 defaultDate ) = loan.removeImpairment();
 

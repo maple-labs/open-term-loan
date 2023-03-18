@@ -6,22 +6,33 @@ import { Test }  from "../modules/forge-std/src/Test.sol";
 import { MapleLoanInitializerHarness }          from "./utils/Harnesses.sol";
 import { MockFactory, MockGlobals, MockLender } from "./utils/Mocks.sol";
 
+// TODO: Consider just attaching the initializer to the harness via an `__initialize` on the harness.
+
 contract InitializerTests is Test {
+
+    event Initialized(
+        address indexed borrower_,
+        address indexed lender_,
+        address indexed fundsAsset_,
+        uint256 principalRequested_,
+        uint32[3] termDetails_,
+        uint64[4] rates_
+    );
+
+    uint32 constant validGracePeriod     = 1;  // Technically, 0 is valid too, but makes it easier to maintain this test.
+    uint32 constant validNoticePeriod    = 1;
+    uint32 constant validPaymentInterval = 1;
+
+    uint64 constant validDelegateServiceFeeRate  = 1;  // Technically, 0 is valid too, but makes it easier to maintain this test.
+    uint64 constant validInterestRate            = 1;  // Technically, 0 is valid too, but makes it easier to maintain this test.
+    uint64 constant validLateFeeRate             = 1;  // Technically, 0 is valid too, but makes it easier to maintain this test.
+    uint64 constant validLateInterestPremiumRate = 1;  // Technically, 0 is valid too, but makes it easier to maintain this test.
+
+    uint256 constant validPrincipalRequested = 1;
 
     address validBorrower;
     address validFundsAsset;
     address validLender;
-
-    uint32 validGracePeriod     = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint32 validNoticePeriod    = 1;
-    uint32 validPaymentInterval = 1;
-
-    uint64 validDelegateServiceFeeRate  = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validInterestRate            = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validLateFeeRate             = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-    uint64 validLateInterestPremiumRate = 1;  // Technically, 0 is valid too, but good to have this to make it easier to maintain this test.
-
-    uint256 validPrincipalRequested = 1;
 
     MapleLoanInitializerHarness initializer;
     MockGlobals                 globals;
@@ -32,8 +43,8 @@ contract InitializerTests is Test {
     function setUp() external {
         lender = new MockLender();
 
-        globals         = new MockGlobals();
         factory         = new MockFactory();
+        globals         = new MockGlobals();
         initializer     = new MapleLoanInitializerHarness();
         lenderFactory   = new MockFactory();
         validBorrower   = makeAddr("borrower");
@@ -43,8 +54,8 @@ contract InitializerTests is Test {
         factory.__setGlobals(address(globals));
 
         globals.__setIsBorrower(validBorrower, true);
-        globals.__setIsPoolAsset(validFundsAsset, true);
         globals.__setIsFactory("LOAN_MANAGER", address(lenderFactory), true);
+        globals.__setIsPoolAsset(validFundsAsset, true);
 
         lender.__setFactory(address(lenderFactory));
 
@@ -177,6 +188,16 @@ contract InitializerTests is Test {
 
         lender.__setPoolManager(poolManager);
         globals.__setPlatformServiceFeeRate(poolManager, validPlatformServiceFeeRate);
+
+        vm.expectEmit();
+        emit Initialized(
+            validBorrower,
+            validLender,
+            validFundsAsset,
+            validPrincipalRequested,
+            [validGracePeriod, validNoticePeriod, validPaymentInterval],
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
+        );
 
         vm.prank(address(factory));
         initializer.__initialize(

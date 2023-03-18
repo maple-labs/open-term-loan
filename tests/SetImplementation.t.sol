@@ -3,39 +3,30 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }         from "./utils/Harnesses.sol";
-import { MockFactory, MockGlobals } from "./utils/Mocks.sol";
-
-contract EmptyContract {
-    fallback() external { }
-}
+import { MapleLoanHarness }                from "./utils/Harnesses.sol";
+import { MockFactory, MockImplementation } from "./utils/Mocks.sol";
 
 contract SetImplementationTests is Test {
 
-    MockFactory      factoryMock = new MockFactory();
+    MockFactory      factory = new MockFactory();
     MapleLoanHarness loan        = new MapleLoanHarness();
-    MockGlobals      globals     = new MockGlobals();
 
     function setUp() external {
-        factoryMock.__setGlobals(address(globals));
-
-        loan.__setFactory(address(factoryMock));
+        loan.__setFactory(address(factory));
     }
 
     function test_setImplementation_notFactory() external {
-        address someContract = address(new EmptyContract());
-
         vm.expectRevert("ML:SI:NOT_FACTORY");
-        loan.setImplementation(someContract);
+        loan.setImplementation(address(0));
     }
 
     function test_setImplementation_success() external {
-        address someContract = address(new EmptyContract());
+        address implementation = address(new MockImplementation());
 
-        vm.prank(address(factoryMock));
-        loan.setImplementation(someContract);
+        vm.prank(address(factory));
+        loan.setImplementation(implementation);
 
-        assertEq(loan.implementation(), someContract);
+        assertEq(loan.implementation(), implementation);
     }
 
 }

@@ -53,8 +53,6 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         ) = decodeArguments(msg.data);
 
         _initialize(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
-
-        emit Initialized(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }
 
     function _initialize(
@@ -104,6 +102,8 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         // Globals stores rates as 1e6 but the loan needs it as 1e18.
         platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(poolManager_) * 1e12);
+
+        emit Initialized(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }
 
 }

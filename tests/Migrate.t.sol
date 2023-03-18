@@ -3,37 +3,28 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }         from "./utils/Harnesses.sol";
-import { MockFactory, MockGlobals } from "./utils/Mocks.sol";
-
-contract EmptyContract {
-    fallback() external { }
-}
+import { MapleLoanHarness }          from "./utils/Harnesses.sol";
+import { MockFactory, MockMigrator } from "./utils/Mocks.sol";
 
 contract MigrateTests is Test {
 
-    MockFactory      factoryMock = new MockFactory();
     MapleLoanHarness loan    = new MapleLoanHarness();
-    MockGlobals      globals = new MockGlobals();
+    MockFactory      factory = new MockFactory();
 
     function setUp() external {
-        factoryMock.__setGlobals(address(globals));
-
-        loan.__setFactory(address(factoryMock));
+        loan.__setFactory(address(factory));
     }
 
     function test_migrate_notFactory() external {
-        address mockMigrator = address(new EmptyContract());
-
         vm.expectRevert("ML:M:NOT_FACTORY");
-        loan.migrate(mockMigrator, new bytes(0));
+        loan.migrate(address(0), new bytes(0));
     }
 
     function test_migrate_success() external {
-        address mockMigrator = address(new EmptyContract());
+        address migrator = address(new MockMigrator());
 
-        vm.prank(address(factoryMock));
-        loan.migrate(mockMigrator, new bytes(0));
+        vm.prank(address(factory));
+        loan.migrate(migrator, new bytes(0));
     }
 
 }

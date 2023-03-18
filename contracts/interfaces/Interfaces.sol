@@ -5,11 +5,11 @@ interface IMapleGlobalsLike {
 
     function isBorrower(address account_) external view returns (bool isBorrower_);
 
-    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isValid_);
+    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isFactory_);
 
-    function isInstanceOf(bytes32 instanceId_, address intance_) external view returns (bool isValid_);
+    function isInstanceOf(bytes32 instanceId_, address instance_) external view returns (bool isInstance_);
 
-    function isPoolAsset(address poolAsset_) external view returns (bool isValid_);
+    function isPoolAsset(address poolAsset_) external view returns (bool isPoolAsset_);
 
     function platformServiceFeeRate(address poolManager) external view returns (uint256 platformServiceFeeRate_);
 
@@ -20,7 +20,7 @@ interface IMapleGlobalsLike {
 interface ILenderLike {
 
     function claim(
-        int256 principal_,
+        int256  principal_,
         uint256 interest_,
         uint256 delegateServiceFee_,
         uint256 platformServiceFee_,

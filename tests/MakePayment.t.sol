@@ -88,14 +88,13 @@ contract MakePaymentSuccessTests is Test, Utils {
 
     event PrincipalReturned(uint256 principalReturned, uint256 principalRemaining);
 
-    uint256 constant gracePeriod  = 1 days;
-    uint256 constant noticePeriod = 2 days;
-
-    uint64  constant delegateServiceFeeRate  = 0.01e18;
-    uint64  constant interestRate            = 0.10e18;
-    uint64  constant lateFeeRate             = 0.01e18;
-    uint64  constant lateInterestPremiumRate = 0.05e18;
-    uint64  constant platformServiceFeeRate  = 0.02e18;
+    uint256 constant delegateServiceFeeRate  = 0.01e18;
+    uint256 constant gracePeriod             = 1 days;
+    uint256 constant interestRate            = 0.10e18;
+    uint256 constant lateFeeRate             = 0.01e18;
+    uint256 constant lateInterestPremiumRate = 0.05e18;
+    uint256 constant noticePeriod            = 2 days;
+    uint256 constant platformServiceFeeRate  = 0.02e18;
     uint256 constant principal               = 100_000e6;
 
     address account = makeAddr("account");
@@ -109,7 +108,7 @@ contract MakePaymentSuccessTests is Test, Utils {
 
     function setUp() external {
         MockFactory factory = new MockFactory();
-        
+
         factory.__setGlobals(address(globals));
 
         loan.__setFactory(address(factory));
@@ -127,7 +126,7 @@ contract MakePaymentSuccessTests is Test, Utils {
         asset.approve(address(loan), type(uint256).max);
     }
 
-    function testFuzz_makePayment_success(
+    function testFuzz_makePayment(
         uint256 paymentInterval,
         uint256 dateFunded,
         uint256 calledPrincipal,
@@ -197,11 +196,11 @@ contract MakePaymentSuccessTests is Test, Utils {
 
         // If there is principal returned, expect the relevant event.
         if (principalToReturn != 0) {
-            vm.expectEmit(true, true, true, true);
+            vm.expectEmit();
             emit PrincipalReturned(principalToReturn, principal - principalToReturn);
         }
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit PaymentMade(
             address(lender),
             principalToReturn,

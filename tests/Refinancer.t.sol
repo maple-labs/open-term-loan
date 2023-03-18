@@ -7,6 +7,8 @@ import { MapleRefinancer } from "../contracts/MapleRefinancer.sol";
 
 import { MapleLoanHarness } from "./utils/Harnesses.sol";
 
+// TODO: Consider just attaching the refinancer to the harness via a `__refinance` on the harness.
+
 // Expose refinancer via delegatecall in the context of the loans storage
 contract MapleLoanWithRefinance is MapleLoanHarness {
 

@@ -8,6 +8,8 @@ import { Utils }            from "./utils/Utils.sol";
 
 contract PaymentBreakdownTests is Test, Utils {
 
+    uint256 constant HUNDRED_PERCENT = 1e18;
+
     // NOTE: Moved variables here to avoid 'Stack too deep'
 
     uint256 interest;
@@ -19,8 +21,6 @@ contract PaymentBreakdownTests is Test, Utils {
     uint256 expectedLateInterest;
     uint256 expectedDelegateServiceFee;
     uint256 expectedPlatformServiceFee;
-
-    uint256 constant HUNDRED_PERCENT = 1e18;
 
     MapleLoanHarness loan = new MapleLoanHarness();
 

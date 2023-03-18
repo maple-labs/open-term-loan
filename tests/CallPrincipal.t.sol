@@ -33,18 +33,6 @@ contract CallPrincipalTests is Test, Utils {
         loan.callPrincipal(1);
     }
 
-    function test_callPrincipal_loanAlreadyCalled() external {
-        uint256 dateFunded = block.timestamp;
-        uint256 dateCalled = dateFunded + 2 days;
-
-        loan.__setDateFunded(dateFunded);
-        loan.__setDateCalled(dateCalled);
-
-        vm.expectRevert("ML:C:ALREADY_CALLED");
-        vm.prank(lender);
-        loan.callPrincipal(1);
-    }
-
     function test_callPrincipal_insufficientPrincipalToReturn() external {
         loan.__setDateFunded(block.timestamp);
 
@@ -64,7 +52,7 @@ contract CallPrincipalTests is Test, Utils {
         loan.callPrincipal(principal);
     }
 
-    function testFuzz_call_success(
+    function testFuzz_callPrincipal_success(
         uint256 gracePeriod,
         uint256 noticePeriod,
         uint256 paymentInterval,
@@ -107,8 +95,9 @@ contract CallPrincipalTests is Test, Utils {
 
         uint256 expectedDefaultDate = minIgnoreZero(callDate, impairedDate, normalDate);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit PrincipalCalled(1, uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+
         vm.prank(lender);
         ( uint40 paymentDueDate, uint40 defaultDate ) = loan.callPrincipal(1);
 

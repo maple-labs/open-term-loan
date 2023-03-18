@@ -7,8 +7,10 @@ import { MapleLoanHarness } from "./utils/Harnesses.sol";
 
 contract SetPendingLenderTests is Test {
 
-    address currentLender  = makeAddr("currentLender");
-    address newLender      = makeAddr("newLender");
+    event PendingLenderSet(address indexed pendingLender_);
+
+    address currentLender = makeAddr("currentLender");
+    address newLender     = makeAddr("newLender");
 
     MapleLoanHarness loan = new MapleLoanHarness();
 
@@ -19,6 +21,9 @@ contract SetPendingLenderTests is Test {
 
     function test_setPendingLender_success() external {
         loan.__setLender(currentLender);
+
+        vm.expectEmit();
+        emit PendingLenderSet(newLender);
 
         vm.prank(currentLender);
         loan.setPendingLender(newLender);

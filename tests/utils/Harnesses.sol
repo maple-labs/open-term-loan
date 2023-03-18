@@ -120,6 +120,10 @@ contract MapleLoanHarness is MapleLoan {
         return _defaultDates();
     }
 
+    /**************************************************************************************************************************************/
+    /*** Pure Functions                                                                                                                 ***/
+    /**************************************************************************************************************************************/
+
     function __getCallDefaultDate(uint256 callDueDate_) external pure returns (uint256 defaultDate_) {
         defaultDate_ = _getCallDefaultDate(uint40(callDueDate_));
     }
@@ -143,10 +147,6 @@ contract MapleLoanHarness is MapleLoan {
     function __getNormalDueDate(uint256 dateFunded_, uint256 datePaid_, uint256 paymentInterval_) external pure returns (uint256 dueDate_) {
         dueDate_ = _getNormalDueDate(uint40(dateFunded_), uint40(datePaid_), uint32(paymentInterval_));
     }
-
-    /**************************************************************************************************************************************/
-    /*** Pure Functions                                                                                                                 ***/
-    /**************************************************************************************************************************************/
 
     function __getPaymentBreakdown(
         uint256 principal_,
@@ -174,6 +174,12 @@ contract MapleLoanHarness is MapleLoan {
 
     function __getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) external pure returns (uint256 proRatedAmount_) {
         return _getProRatedAmount(amount_, rate_, interval_);
+    }
+
+    function __getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
+        external pure returns (bytes32 refinanceCommitment_)
+    {
+        refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_);
     }
 
     function __maxDate(uint256 a_, uint256 b_) external pure returns (uint256 max_) {

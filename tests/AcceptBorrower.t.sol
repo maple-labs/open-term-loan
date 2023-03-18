@@ -8,16 +8,18 @@ import { MockFactory, MockGlobals } from "./utils/Mocks.sol";
 
 contract AcceptBorrowerTests is Test {
 
-    address account  = makeAddr("account");
+    event BorrowerAccepted(address indexed newBorrower_);
 
-    MockFactory      factoryMock = new MockFactory();
-    MapleLoanHarness loan        = new MapleLoanHarness();
-    MockGlobals      globals     = new MockGlobals();
+    address account = makeAddr("account");
+
+    MockFactory      factory = new MockFactory();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
-        factoryMock.__setGlobals(address(globals));
+        factory.__setGlobals(address(globals));
 
-        loan.__setFactory(address(factoryMock));
+        loan.__setFactory(address(factory));
     }
 
     function test_acceptBorrower_protocolPaused() external {
@@ -36,6 +38,9 @@ contract AcceptBorrowerTests is Test {
 
     function test_acceptBorrower_success() external {
         loan.__setPendingBorrower(account);
+
+        vm.expectEmit();
+        emit BorrowerAccepted(account);
 
         vm.prank(account);
         loan.acceptBorrower();

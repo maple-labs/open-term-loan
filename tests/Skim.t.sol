@@ -19,7 +19,7 @@ contract SkimTests is Test, Utils {
 
     function setUp() external {
         MockFactory factory = new MockFactory();
-        
+
         factory.__setGlobals(address(globals));
 
         loan.__setBorrower(borrower);
@@ -28,6 +28,7 @@ contract SkimTests is Test, Utils {
 
     function test_skim_protocolPaused() external {
         globals.__setProtocolPaused(true);
+
         vm.expectRevert("ML:PROTOCOL_PAUSED");
         loan.skim(address(0), account);
     }
@@ -70,7 +71,7 @@ contract SkimTests is Test, Utils {
         assertEq(MockERC20(asset).balanceOf(account),       0);
         assertEq(MockERC20(asset).balanceOf(address(loan)), amount);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Skimmed(asset, amount, account);
 
         vm.prank(borrower);

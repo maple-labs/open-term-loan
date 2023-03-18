@@ -26,11 +26,11 @@ contract AcceptNewTermsFailure is Test, Utils {
     MockGlobals      globals    = new MockGlobals();
 
     function setUp() external virtual {
-        MockFactory mockFactory = new MockFactory();
+        MockFactory factory = new MockFactory();
 
-        mockFactory.__setGlobals(address(globals));
+        factory.__setGlobals(address(globals));
 
-        loan.__setFactory(address(mockFactory));
+        loan.__setFactory(address(factory));
         loan.__setBorrower(borrower);
     }
 
@@ -38,12 +38,12 @@ contract AcceptNewTermsFailure is Test, Utils {
         globals.__setProtocolPaused(true);
 
         vm.expectRevert("ML:PROTOCOL_PAUSED");
-        loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
+        loan.acceptNewTerms(address(0), 0, new bytes[](0));
     }
 
     function test_acceptNewTerms_notBorrower() external {
         vm.expectRevert("ML:ANT:NOT_BORROWER");
-        loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
+        loan.acceptNewTerms(address(0), 0, new bytes[](0));
     }
 
     function test_acceptNewTerms_mismatchedCommitment() external {
@@ -111,35 +111,34 @@ contract AcceptNewTermsFailure is Test, Utils {
 // it's necessary to add tests for the refinancer's state changes.
 contract AcceptNewTerms is Test, Utils {
 
-    uint256 constant gracePeriod  = 1 days;
-    uint256 constant noticePeriod = 2 days;
-    uint256 constant interval     = 1_000_000;
+    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
 
+    uint256 constant gracePeriod             = 1 days;
     uint256 constant interestRate            = 0.10e18;
+    uint256 constant interval                = 1_000_000;
     uint256 constant lateFeeRate             = 0.01e18;
     uint256 constant lateInterestPremiumRate = 0.05e18;
+    uint256 constant noticePeriod            = 2 days;
     uint256 constant principal               = 1_000_000e6;
     uint256 constant principalDiff           = 100_000e6;
 
     address borrower = makeAddr("borrower");
 
-    uint256 start;
+    uint256 start = block.timestamp;
 
     MapleLoanHarness loan       = new MapleLoanHarness();
     MapleRefinancer  refinancer = new MapleRefinancer();
-    MockGlobals      globals    = new MockGlobals();
     MockERC20        asset      = new MockERC20("Asset", "A", 6);
+    MockGlobals      globals    = new MockGlobals();
     MockLender       lender     = new MockLender();
 
     function setUp() external virtual {
-        start = block.timestamp;
+        MockFactory factory = new MockFactory();
 
-        MockFactory mockFactory = new MockFactory();
-
-        mockFactory.__setGlobals(address(globals));
+        factory.__setGlobals(address(globals));
 
         loan.__setBorrower(borrower);
-        loan.__setFactory(address(mockFactory));
+        loan.__setFactory(address(factory));
         loan.__setFundsAsset(address(asset));
         loan.__setInterestRate(interestRate);
         loan.__setLateFeeRate(lateFeeRate);
@@ -188,12 +187,19 @@ contract AcceptNewTerms is Test, Utils {
         // Mint the borrower the partial payments
         asset.mint(borrower, interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_);
 
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
         lender.__expectCall();
         lender.claim(int256(0), interest_ + lateInterest_, delegateServiceFee_,platformServiceFee_, uint40(block.timestamp + 2_000_000));
 
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
         vm.prank(borrower);
-        loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
 
         assertEq(loan.calledPrincipal(), 0);
         assertEq(loan.dateCalled(),      0);
@@ -237,6 +243,8 @@ contract AcceptNewTerms is Test, Utils {
         uint256 initialLenderBalance   = asset.balanceOf(address(lender));
         uint256 initialBorrowerBalance = asset.balanceOf(address(borrower));
 
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
         lender.__expectCall();
         lender.claim(
@@ -247,8 +255,13 @@ contract AcceptNewTerms is Test, Utils {
             uint40(block.timestamp + 1_000_000)
         );
 
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
         vm.prank(borrower);
-        loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
 
         uint256 finalLenderBalance   = asset.balanceOf(address(lender));
         uint256 finalBorrowerBalance = asset.balanceOf(address(borrower));
@@ -295,6 +308,8 @@ contract AcceptNewTerms is Test, Utils {
         uint256 initialLenderBalance   = asset.balanceOf(address(lender));
         uint256 initialBorrowerBalance = asset.balanceOf(address(borrower));
 
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
         // Set up the mock lender to expect it's `claim` to be called with these specific values.
         lender.__expectCall();
         lender.claim(
@@ -305,8 +320,13 @@ contract AcceptNewTerms is Test, Utils {
             uint40(block.timestamp + 1_000_000)
         );
 
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
         vm.prank(borrower);
-        loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
 
         uint256 finalLenderBalance   = asset.balanceOf(address(lender));
         uint256 finalBorrowerBalance = asset.balanceOf(address(borrower));

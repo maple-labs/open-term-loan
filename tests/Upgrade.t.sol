@@ -8,43 +8,43 @@ import { MockFactory, MockGlobals } from "./utils/Mocks.sol";
 
 contract UpgradeTests is Test {
 
+    event Upgraded(uint256 toVersion_, bytes arguments_);
+
     address borrower = makeAddr("borrower");
 
-    MockFactory      factoryMock = new MockFactory();
-    MapleLoanHarness loan        = new MapleLoanHarness();
-    MockGlobals      globals     = new MockGlobals();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
-        factoryMock.__setGlobals(address(globals));
+        factory.__setGlobals(address(globals));
 
         loan.__setBorrower(borrower);
-        loan.__setFactory(address(factoryMock));
+        loan.__setFactory(address(factory));
     }
 
     function test_upgrade_protocolPaused() external {
-        address newImplementation = address(new MapleLoanHarness());
-
         globals.__setProtocolPaused(true);
 
         vm.prank(borrower);
         vm.expectRevert("ML:PROTOCOL_PAUSED");
-        loan.upgrade(1, abi.encode(newImplementation));
+        loan.upgrade(1, "");
     }
 
     function test_upgrade_notBorrower() external {
-        address newImplementation = address(new MapleLoanHarness());
-
         vm.expectRevert("ML:U:NOT_BORROWER");
-        loan.upgrade(1, abi.encode(newImplementation));
+        loan.upgrade(1, "");
     }
 
     function test_upgrade_success() external {
-        address newImplementation = address(new MapleLoanHarness());
+        factory.__expectCall();
+        factory.upgradeInstance(1, "");
+
+        vm.expectEmit();
+        emit Upgraded(1, "");
 
         vm.prank(borrower);
-        loan.upgrade(1, abi.encode(newImplementation));
-
-        assertEq(loan.implementation(), newImplementation);
+        loan.upgrade(1, "");
     }
 
 }

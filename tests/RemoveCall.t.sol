@@ -71,8 +71,9 @@ contract RemoveCallTests is Test, Utils {
 
         uint256 expectedDefaultDate = minIgnoreZero(impairedDate, normalDate);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit CallRemoved(uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+
         vm.prank(lender);
         ( uint40 paymentDueDate, uint40 defaultDate ) = loan.removeCall();
 

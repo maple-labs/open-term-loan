@@ -79,8 +79,9 @@ contract FundTests is Test, Utils {
         assertEq(MockERC20(asset).balanceOf(lender),        principal + extra);
         assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Funded(principal, uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+
         vm.prank(lender);
         ( uint256 fundsLent, uint40 paymentDueDate, uint40 defaultDate ) = loan.fund();
 

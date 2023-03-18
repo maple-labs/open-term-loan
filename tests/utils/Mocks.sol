@@ -35,19 +35,13 @@ contract Spied is Test {
 
 }
 
-contract MockFactory {
+contract MockFactory is Spied {
 
     address public mapleGlobals;
 
     mapping(address => bool) public isInstance;
 
-    function upgradeInstance(uint256 , bytes calldata arguments_) external {
-        address implementation = abi.decode(arguments_, (address));
-
-        ( bool success, ) = msg.sender.call(abi.encodeWithSignature("setImplementation(address)", implementation));
-
-        require(success);
-    }
+    function upgradeInstance(uint256 version_, bytes calldata arguments_) external spied {}
 
     function __setGlobals(address globals_) external {
         mapleGlobals = globals_;
@@ -85,8 +79,8 @@ contract MockGlobals {
         isFactory[factoryType_][factory_] = isFactory_;
     }
 
-    function __setIsInstanceOf(bytes32 instanceType_, address instance_, bool isinstance_) external {
-        isInstanceOf[instanceType_][instance_] = isinstance_;
+    function __setIsInstanceOf(bytes32 instanceId_, address instance_, bool isInstance_) external {
+        isInstanceOf[instanceId_][instance_] = isInstance_;
     }
 
     function __setIsPoolAsset(address poolAsset_, bool isPoolAsset_) external {
@@ -100,6 +94,12 @@ contract MockGlobals {
     function __setPlatformServiceFeeRate(address poolManager_, uint256 platformServiceFeeRate_) external {
         platformServiceFeeRate[poolManager_] = platformServiceFeeRate_;
     }
+
+}
+
+contract MockImplementation {
+
+    fallback() external {}
 
 }
 
@@ -123,6 +123,12 @@ contract MockLender is Spied {
     function __setPoolManager(address poolManager_) external {
         poolManager = poolManager_;
     }
+
+}
+
+contract MockMigrator {
+
+    fallback() external {}
 
 }
 

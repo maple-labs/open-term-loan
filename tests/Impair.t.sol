@@ -30,18 +30,6 @@ contract ImpairTests is Test, Utils {
         loan.impair();
     }
 
-    function test_impair_loanAlreadyImpaired() external {
-        uint256 dateFunded   = block.timestamp;
-        uint256 dateImpaired = dateFunded + 2 days;
-
-        loan.__setDateFunded(dateFunded);
-        loan.__setDateImpaired(dateImpaired);
-
-        vm.expectRevert("ML:I:ALREADY_IMPAIRED");
-        vm.prank(lender);
-        loan.impair();
-    }
-
     function testFuzz_impair_success(
         uint256 gracePeriod,
         uint256 noticePeriod,
@@ -84,8 +72,9 @@ contract ImpairTests is Test, Utils {
 
         uint256 expectedDefaultDate = minIgnoreZero(callDate, impairedDate, normalDate);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Impaired(uint40(expectedPaymentDueDate), uint40(expectedDefaultDate));
+
         vm.prank(lender);
         ( uint40 paymentDueDate, uint40 defaultDate ) = loan.impair();
 

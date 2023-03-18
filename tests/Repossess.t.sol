@@ -108,7 +108,7 @@ contract RepossessTests is Test, Utils {
         assertEq(MockERC20(asset).balanceOf(account),       0);
         assertEq(MockERC20(asset).balanceOf(address(loan)), funds);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Repossessed(funds, account);
         vm.prank(lender);
         ( uint256 fundsRepossessed ) = loan.repossess(account);
@@ -121,7 +121,7 @@ contract RepossessTests is Test, Utils {
         assertCloseLoanState(asset, borrower, pendingBorrower, pendingLender);
     }
 
-    function test_repossess_successNoTransfer() external {
+    function test_repossess_success_noTransfer() external {
         address asset           = address(new MockERC20("Asset", "A", 6));
         address borrower        = makeAddr("borrower");
         address pendingBorrower = makeAddr("pendingBorrower");
@@ -129,7 +129,7 @@ contract RepossessTests is Test, Utils {
 
         setAllState(asset, borrower, pendingBorrower, pendingLender);
 
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit();
         emit Repossessed(0, account);
         vm.prank(lender);
         ( uint256 fundsRepossessed ) = loan.repossess(account);
