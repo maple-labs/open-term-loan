@@ -205,7 +205,7 @@ contract PaymentBreakdownTests is Test, Utils {
         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + 365 days - (365 days / 100));
 
         assertEq(interest,           99_000e6);
-        assertEq(lateInterest,       0);         
+        assertEq(lateInterest,       0);
         assertEq(delegateServiceFee, 99_00e6);
         assertEq(platformServiceFee, 24_750e6);
 
@@ -325,6 +325,64 @@ contract PaymentBreakdownTests is Test, Utils {
         assertEq(lateInterest,       21_500e6);  // 1,000,000 * 5% * 1/4 + 1,000,000 * 0.9%
         assertEq(delegateServiceFee, 11_250e6);  // 1,000,000 * 1.5% * 3/4
         assertEq(platformServiceFee, 18_750e6);  // 1,000,000 * 2.5% * 3/4
+    }
+
+    // The loan has not been funded yet (`dateFunded` is zero) so all zeros are returned.
+    function test_paymentBreakdown_fixture9() external {
+        uint256 paymentInterval         = 30 days;
+        uint256 dateFunded              = 0;
+        uint256 principal               = 1_000_000e6;
+        uint256 interestRate            = 0.08e18;
+        uint256 lateFeeRate             = 0.009e18;
+        uint256 lateInterestPremiumRate = 0.05e18;
+        uint256 delegateServiceFeeRate  = 0.015e18;
+        uint256 platformServiceFeeRate  = 0.025e18;
+
+        loan.__setDateFunded(dateFunded);
+        loan.__setLateFeeRate(lateFeeRate);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
+        loan.__setPaymentInterval(paymentInterval);
+        loan.__setPrincipal(principal);
+        loan.__setInterestRate(interestRate);
+        loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
+        loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
+
+        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+
+        assertEq(principal,          0);
+        assertEq(interest,           0);
+        assertEq(lateInterest,       0);
+        assertEq(delegateServiceFee, 0);
+        assertEq(platformServiceFee, 0);
+    }
+
+    // The loan has been funded but the given timestamp is not greater than the funding date so all zeros are returned.
+    function test_paymentBreakdown_fixture10() external {
+        uint256 paymentInterval         = 30 days;
+        uint256 dateFunded              = block.timestamp;
+        uint256 principal               = 1_000_000e6;
+        uint256 interestRate            = 0.08e18;
+        uint256 lateFeeRate             = 0.009e18;
+        uint256 lateInterestPremiumRate = 0.05e18;
+        uint256 delegateServiceFeeRate  = 0.015e18;
+        uint256 platformServiceFeeRate  = 0.025e18;
+
+        loan.__setDateFunded(dateFunded);
+        loan.__setLateFeeRate(lateFeeRate);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
+        loan.__setPaymentInterval(paymentInterval);
+        loan.__setPrincipal(principal);
+        loan.__setInterestRate(interestRate);
+        loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
+        loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
+
+        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp - 1 seconds);
+
+        assertEq(principal,          0);
+        assertEq(interest,           0);
+        assertEq(lateInterest,       0);
+        assertEq(delegateServiceFee, 0);
+        assertEq(platformServiceFee, 0);
     }
 
 }

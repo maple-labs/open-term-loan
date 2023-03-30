@@ -424,8 +424,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             uint256 platformServiceFee_
         )
     {
+        uint40 startDate_ = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
+
+        // Return all zeros if the loan has not been funded yet or if the given timestamp is not greater than the start date.
+        if (startDate_ == 0 || timestamp_ <= startDate_) return (0, 0, 0, 0, 0);
+
         uint40 paymentDueDate_ = paymentDueDate();
-        uint40 startDate_      = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
 
         // "Current" interval and late interval respectively.
         ( uint32 interval_, uint32 lateInterval_ ) =
