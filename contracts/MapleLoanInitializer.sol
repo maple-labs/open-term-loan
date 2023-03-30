@@ -69,8 +69,8 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 	    require(principalRequested_ != 0, "MLI:I:INVALID_PRINCIPAL");
 
         // Payment interval and notice period to be non-zero.
-        require(termDetails_[1] > 0, "MLI:I:INVALID_NOTICE_PERIOD");
-        require(termDetails_[2] > 0, "MLI:I:INVALID_PAYMENT_INTERVAL");
+        require(termDetails_[1] != 0, "MLI:I:INVALID_NOTICE_PERIOD");
+        require(termDetails_[2] != 0, "MLI:I:INVALID_PAYMENT_INTERVAL");
 
         address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
 
@@ -93,15 +93,13 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         noticePeriod    = termDetails_[1];
         paymentInterval = termDetails_[2];
 
-        address poolManager_ = ILenderLike(lender_).poolManager();
-
         delegateServiceFeeRate  = rates_[0];
         interestRate            = rates_[1];
         lateFeeRate             = rates_[2];
         lateInterestPremiumRate = rates_[3];
 
         // Globals stores rates as 1e6 but the loan needs it as 1e18.
-        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(poolManager_) * 1e12);
+        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(ILenderLike(lender_).poolManager()) * 1e12);
 
         emit Initialized(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }

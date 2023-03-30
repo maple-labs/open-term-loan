@@ -557,7 +557,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function _int256(uint256 input_) internal pure returns (int256 output_) {
-        require(input_ <= uint256(type(int256).max), "ML:INT256_CAST");
+        require(input_ <= uint256(type(int256).max), "ML:UINT256_CAST");
         output_ = int256(input_);
     }
 
