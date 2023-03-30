@@ -109,11 +109,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         ) = paymentBreakdown(block.timestamp);
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
-        datePaid = _uint40(block.timestamp);
-
-        delete calledPrincipal;
-        delete dateImpaired;
-        delete dateCalled;
         delete refinanceCommitment;
 
         emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
@@ -124,9 +119,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             unchecked { ++i; }
         }
 
-        address fundsAsset_ = fundsAsset;
+        address fundsAsset_   = fundsAsset;
+        uint256 newPrincipal_ = principal;
 
-        int256 netPrincipalToReturnToLender_ = _int256(previousPrincipal_) - _int256(principal);
+        int256 netPrincipalToReturnToLender_ = _int256(previousPrincipal_) - _int256(newPrincipal_);
 
         uint256 interestAndFees_ = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
@@ -144,6 +140,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         // Globals stores rates as 1e6 but the loan needs it as 1e18.
         platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()) * 1e12);
+
+        if (newPrincipal_ == 0) {
+            // NOTE: All the principal has been paid back therefore clear the loan accounting.
+            _clearLoanAccounting();
+        } else {
+            // NOTE: A refinance clears a loan impair and called status, and this is cheaper to always do.
+            datePaid = _uint40(block.timestamp);
+
+            delete calledPrincipal;
+            delete dateImpaired;
+            delete dateCalled;
+        }
 
         lender_.claim(
             netPrincipalToReturnToLender_,
