@@ -38,7 +38,7 @@ contract FactoryTests is Test {
         globals.__setGovernor(governor);
         globals.__setIsBorrower(borrower, true);
         globals.__setIsPoolAsset(fundsAsset, true);
-        globals.__setIsFactory("LOAN_MANAGER", address(lenderFactory), true);
+        globals.__setIsInstanceOf("OT_LOAN_MANAGER_FACTORY", address(lenderFactory), true);
 
         lender.__setFactory(address(lenderFactory));
         lender.__setPoolManager(poolManager);

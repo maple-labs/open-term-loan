@@ -54,7 +54,8 @@ contract InitializerTests is Test {
         factory.__setGlobals(address(globals));
 
         globals.__setIsBorrower(validBorrower, true);
-        globals.__setIsFactory("LOAN_MANAGER", address(lenderFactory), true);
+        globals.__setIsInstanceOf("OT_LOAN_MANAGER_FACTORY", address(lenderFactory), true);
+
         globals.__setIsPoolAsset(validFundsAsset, true);
 
         lender.__setFactory(address(lenderFactory));
