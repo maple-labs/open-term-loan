@@ -13,6 +13,7 @@ contract SkimTests is Test, Utils {
 
     address account  = makeAddr("account");
     address borrower = makeAddr("borrower");
+    address governor = makeAddr("governor");
 
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockGlobals      globals = new MockGlobals();
@@ -21,6 +22,8 @@ contract SkimTests is Test, Utils {
         MockFactory factory = new MockFactory();
 
         factory.__setGlobals(address(globals));
+
+        globals.__setGovernor(governor);
 
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
@@ -34,7 +37,7 @@ contract SkimTests is Test, Utils {
     }
 
     function test_skim_notBorrower() external {
-        vm.expectRevert("ML:S:NOT_BORROWER");
+        vm.expectRevert("ML:S:NO_AUTH");
         loan.skim(address(0), account);
     }
 
@@ -60,7 +63,7 @@ contract SkimTests is Test, Utils {
         loan.skim(asset, account);
     }
 
-    function test_skim_success() external {
+    function test_skim_borrower() external {
         uint256 amount = 100_000e6;
         address asset  = address(new MockERC20("Asset", "A", 6));
 
@@ -75,6 +78,29 @@ contract SkimTests is Test, Utils {
         emit Skimmed(asset, amount, account);
 
         vm.prank(borrower);
+        uint256 skimmed = loan.skim(asset, account);
+
+        assertEq(skimmed, amount);
+
+        assertEq(MockERC20(asset).balanceOf(account),       amount);
+        assertEq(MockERC20(asset).balanceOf(address(loan)), 0);
+    }
+
+    function test_skim_governor() external {
+        uint256 amount = 100_000e6;
+        address asset  = address(new MockERC20("Asset", "A", 6));
+
+        loan.__setFundsAsset(asset);
+
+        deal(asset, address(loan), amount);
+
+        assertEq(MockERC20(asset).balanceOf(account),       0);
+        assertEq(MockERC20(asset).balanceOf(address(loan)), amount);
+
+        vm.expectEmit();
+        emit Skimmed(asset, amount, account);
+
+        vm.prank(governor);
         uint256 skimmed = loan.skim(asset, account);
 
         assertEq(skimmed, amount);

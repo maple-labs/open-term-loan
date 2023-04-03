@@ -33,7 +33,6 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 /// @title MapleLoan implements an open term loan, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
-    // TODO: Think about using `1e6` for all percentage variables.
     uint256 internal constant HUNDRED_PERCENT = 1e18;
 
     // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
@@ -94,7 +93,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             "ML:ANT:COMMITMENT_MISMATCH"
         );
 
-        // TODO: Revisit idea to add allowlist check to globals.
         require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
         require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
 
@@ -183,9 +181,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown(block.timestamp);
 
         // If the loan is called, the principal being returned must be greater than the portion called.
-        // TODO: Better error strings, but error codes would be better.
         require(dateFunded != 0,                        "ML:MP:LOAN_INACTIVE");
-        require(principalToReturn_ <= principal,        "ML:MP:RETUNING_TOO_MUCH");
+        require(principalToReturn_ <= principal,        "ML:MP:RETURNING_TOO_MUCH");
         require(principalToReturn_ >= calledPrincipal_, "ML:MP:INSUFFICIENT_FOR_CALL");
 
         uint256 total_ = principalToReturn_ + interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
@@ -374,9 +371,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
     }
 
-    // TODO: Consider giving the governor the sole access to skim.
     function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {
-        require(msg.sender == borrower, "ML:S:NOT_BORROWER");
+        address governor_ = IMapleGlobalsLike(globals()).governor();
+
+        require(msg.sender == governor_ || msg.sender == borrower, "ML:S:NO_AUTH");
 
         skimmed_ = IERC20(token_).balanceOf(address(this));
 

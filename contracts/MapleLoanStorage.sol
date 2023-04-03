@@ -6,8 +6,6 @@ import { IMapleLoanStorage } from "./interfaces/IMapleLoanStorage.sol";
 /// @title MapleLoanStorage defines the storage layout of MapleLoan.
 abstract contract MapleLoanStorage is IMapleLoanStorage {
 
-    // TODO: Confirm uint32s and uint40s.
-
     address public override fundsAsset;       // The address of the asset used as funds.
     address public override borrower;         // The address of the borrower.
     address public override lender;           // The address of the lender.

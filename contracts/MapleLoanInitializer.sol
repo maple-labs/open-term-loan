@@ -7,8 +7,6 @@ import { ILenderLike, IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interf
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
-// TODO: Try to remove all arrays in arguments (once fees are added) if not stack too deep.
-
 contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function encodeArguments(

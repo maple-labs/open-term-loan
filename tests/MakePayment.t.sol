@@ -39,7 +39,7 @@ contract MakePaymentFailureTests is Test, Utils {
     function test_makePayment_returningTooMuch() external {
         loan.__setDateFunded(1);
         loan.__setPrincipal(1);
-        vm.expectRevert("ML:MP:RETUNING_TOO_MUCH");
+        vm.expectRevert("ML:MP:RETURNING_TOO_MUCH");
         loan.makePayment(2);
     }
 
