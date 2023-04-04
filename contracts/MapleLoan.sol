@@ -33,7 +33,7 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 /// @title MapleLoan implements an open term loan, and is intended to be proxied.
 contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
-    uint256 internal constant HUNDRED_PERCENT = 1e18;
+    uint256 internal constant HUNDRED_PERCENT = 1e6;
 
     // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
     // * callPrincipal
