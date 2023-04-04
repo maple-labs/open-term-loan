@@ -6,7 +6,7 @@ import { Test } from "../modules/forge-std/src/Test.sol";
 import { MapleLoanHarness } from "./utils/Harnesses.sol";
 import { Utils }            from "./utils/Utils.sol";
 
-contract PaymentBreakdownTests is Test, Utils {
+contract GetPaymentBreakdownTests is Test, Utils {
 
     uint256 constant HUNDRED_PERCENT = 1e6;
 
@@ -24,7 +24,7 @@ contract PaymentBreakdownTests is Test, Utils {
 
     MapleLoanHarness loan = new MapleLoanHarness();
 
-    function testFuzz_paymentBreakdown(
+    function testFuzz_getPaymentBreakdown(
         uint256 paymentInterval,
         uint256 dateFunded,
         uint256 principal,
@@ -52,7 +52,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(uint64(delegateServiceFeeRate));
         loan.__setPlatformServiceFeeRate(uint64(platformServiceFeeRate));
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         uint256 paymentDueDate = dateFunded + paymentInterval;
 
@@ -79,7 +79,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Full year payment interval at 10%
-    function test_paymentBreakdown_fixture1() external {
+    function test_getPaymentBreakdown_fixture1() external {
         uint256 paymentInterval        = 365 days;
         uint256 dateFunded             = block.timestamp;
         uint256 principal              = 1_000_000e6;
@@ -95,7 +95,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
         // 3/4 of the payment interval
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + (paymentInterval * 3 / 4));
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + (paymentInterval * 3 / 4));
 
         assertEq(interest,           75_000e6);
         assertEq(lateInterest,       0);
@@ -103,7 +103,7 @@ contract PaymentBreakdownTests is Test, Utils {
         assertEq(platformServiceFee, 18_750e6);
 
         // At the payment interval
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + paymentInterval);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + paymentInterval);
 
         assertEq(interest,           100_000e6);
         assertEq(lateInterest,       0);
@@ -111,7 +111,7 @@ contract PaymentBreakdownTests is Test, Utils {
         assertEq(platformServiceFee, 25_000e6);
 
         // 1/5 of the payment interval late
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + (paymentInterval * 6 / 5));
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + (paymentInterval * 6 / 5));
 
         assertEq(interest,           120_000e6);
         assertEq(lateInterest,       0);          // No late interest in this fixture.
@@ -120,7 +120,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // 30 day payment interval at 10%
-    function test_paymentBreakdown_fixture2() external {
+    function test_getPaymentBreakdown_fixture2() external {
         uint256 paymentInterval        = 30 days;
         uint256 dateFunded             = block.timestamp;
         uint256 principal              = 1_000_000e6;
@@ -136,14 +136,14 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
         // Half way into the interval
-         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + paymentInterval / 2);
+         ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + paymentInterval / 2);
 
         assertEq(interest,           4_109.589041e6);
         assertEq(lateInterest,       0);
         assertEq(delegateServiceFee, 410.958904e6);
         assertEq(platformServiceFee, 1_027.397260e6);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + paymentInterval);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + paymentInterval);
 
         assertEq(interest,           8_219.178082e6);
         assertEq(lateInterest,       0);
@@ -151,7 +151,7 @@ contract PaymentBreakdownTests is Test, Utils {
         assertEq(platformServiceFee, 2_054.794520e6);
 
         // Half way late into the next interval
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + paymentInterval + paymentInterval / 2);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + paymentInterval + paymentInterval / 2);
 
         assertEq(interest,           12_328.767123e6);
         assertEq(lateInterest,       0);
@@ -160,7 +160,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Full year at 10% interest, 0.1 years early at 10% interest (full year for easy validation)
-    function test_paymentBreakdown_fixture3() external {
+    function test_getPaymentBreakdown_fixture3() external {
         uint256 paymentInterval        = 365 days;
         uint256 dateFunded             = block.timestamp - 365 days + (365 days / 10);
         uint256 principal              = 1_000_000e6;
@@ -175,7 +175,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         assertEq(interest,           90_000e6);
         assertEq(lateInterest,       0);
@@ -184,7 +184,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Full year at 10% interest, 0.1 years late at (10% + 5%) interest (full year for easy validation)
-    function test_paymentBreakdown_fixture4() external {
+    function test_getPaymentBreakdown_fixture4() external {
         uint256 paymentInterval         = 365 days;
         uint256 dateFunded              = block.timestamp;
         uint256 principal               = 1_000_000e6;
@@ -202,14 +202,14 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
         // 0.01 years
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + 365 days - (365 days / 100));
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + 365 days - (365 days / 100));
 
         assertEq(interest,           99_000e6);
         assertEq(lateInterest,       0);
         assertEq(delegateServiceFee, 99_00e6);
         assertEq(platformServiceFee, 24_750e6);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + 365 days + (365 days / 10));
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + 365 days + (365 days / 10));
 
         assertEq(interest,           110_000e6);  // 1.1 year at 10% interest
         assertEq(lateInterest,       5_000e6);    // 0.1 years at (5%) interest (5_000e6)
@@ -218,7 +218,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Half year at 10% interest, 0.1 years late at 10% interest + 0.9% flat fee on principal
-    function test_paymentBreakdown_fixture5() external {
+    function test_getPaymentBreakdown_fixture5() external {
         uint256 paymentInterval        = 365 days / 2;
         uint256 dateFunded             = block.timestamp - (365 days / 2) - (365 days / 10);
         uint256 principal              = 1_000_000e6;
@@ -235,7 +235,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         assertEq(interest,           60_000e6);  // 0.6 years at 10% interest
         assertEq(lateInterest,       9_000e6);   // 0.1 years at 10% interest (10_000e6) + 0.9% of flat fee (9_000e6)
@@ -244,7 +244,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Half year at 10% interest, 0.1 years late at (10% + 5%) interest + 0.9% flat fee on principal
-    function test_paymentBreakdown_fixture6() external {
+    function test_getPaymentBreakdown_fixture6() external {
         uint256 paymentInterval         = 365 days / 2;
         uint256 dateFunded              = block.timestamp - (365 days / 2) - (365 days / 10);
         uint256 principal               = 1_000_000e6;
@@ -263,7 +263,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         assertEq(interest,           60_000e6);  // 0.6 years at 10% interest
         assertEq(lateInterest,       14_000e6);  // 0.1 years at (5%) interest (5_000e6) + 0.9% of flat fee (9_000e6)
@@ -272,7 +272,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Half year at 8% interest, 0.25 years late at (10% + 5%) interest + 0.9% flat fee on principal + 1.5%/2.5% service fee rates.
-    function test_paymentBreakdown_fixture7() external {
+    function test_getPaymentBreakdown_fixture7() external {
         uint256 paymentInterval         = 365 days / 2;
         uint256 dateFunded              = block.timestamp - paymentInterval * 3 / 2;
         uint256 principal               = 1_000_000e6;
@@ -291,7 +291,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         assertEq(interest,           60_000e6);  // 1,000,000 * 8% * 3/4
         assertEq(lateInterest,       21_500e6);  // 1,000,000 * 5% * 1/4 + 1,000,000 * 0.9%
@@ -300,7 +300,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // Same as fixture 7, but with a future date being passed as argument.
-    function test_paymentBreakdown_fixture8() external {
+    function test_getPaymentBreakdown_fixture8() external {
         uint256 paymentInterval         = 365 days / 2;
         uint256 dateFunded              = block.timestamp;
         uint256 principal               = 1_000_000e6;
@@ -319,7 +319,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp + paymentInterval * 3 / 2);
+        ( , interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp + paymentInterval * 3 / 2);
 
         assertEq(interest,           60_000e6);  // 1,000,000 * 8% * 3/4
         assertEq(lateInterest,       21_500e6);  // 1,000,000 * 5% * 1/4 + 1,000,000 * 0.9%
@@ -328,7 +328,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // The loan has not been funded yet (`dateFunded` is zero) so all zeros are returned.
-    function test_paymentBreakdown_fixture9() external {
+    function test_getPaymentBreakdown_fixture9() external {
         uint256 paymentInterval         = 30 days;
         uint256 dateFunded              = 0;
         uint256 principal               = 1_000_000e6;
@@ -347,7 +347,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp);
+        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp);
 
         assertEq(principal,          0);
         assertEq(interest,           0);
@@ -357,7 +357,7 @@ contract PaymentBreakdownTests is Test, Utils {
     }
 
     // The loan has been funded but the given timestamp is not greater than the funding date so all zeros are returned.
-    function test_paymentBreakdown_fixture10() external {
+    function test_getPaymentBreakdown_fixture10() external {
         uint256 paymentInterval         = 30 days;
         uint256 dateFunded              = block.timestamp;
         uint256 principal               = 1_000_000e6;
@@ -376,7 +376,7 @@ contract PaymentBreakdownTests is Test, Utils {
         loan.__setDelegateServiceFeeRate(delegateServiceFeeRate);
         loan.__setPlatformServiceFeeRate(platformServiceFeeRate);
 
-        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.paymentBreakdown(block.timestamp - 1 seconds);
+        ( principal, interest, lateInterest, delegateServiceFee, platformServiceFee ) = loan.getPaymentBreakdown(block.timestamp - 1 seconds);
 
         assertEq(principal,          0);
         assertEq(interest,           0);

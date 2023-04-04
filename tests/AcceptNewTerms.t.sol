@@ -182,7 +182,7 @@ contract AcceptNewTerms is Test, Utils {
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
             uint256 platformServiceFee_
-        ) = loan.paymentBreakdown(block.timestamp);
+        ) = loan.getPaymentBreakdown(block.timestamp);
 
         // Mint the borrower the partial payments
         asset.mint(borrower, interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_);
@@ -230,7 +230,7 @@ contract AcceptNewTerms is Test, Utils {
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
             uint256 platformServiceFee_
-        ) = loan.paymentBreakdown(block.timestamp);
+        ) = loan.getPaymentBreakdown(block.timestamp);
 
         uint256 totalPayment = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
@@ -298,7 +298,7 @@ contract AcceptNewTerms is Test, Utils {
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
             uint256 platformServiceFee_
-        ) = loan.paymentBreakdown(block.timestamp);
+        ) = loan.getPaymentBreakdown(block.timestamp);
 
         uint256 totalPayment = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
@@ -364,7 +364,7 @@ contract AcceptNewTerms is Test, Utils {
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
             uint256 platformServiceFee_
-        ) = loan.paymentBreakdown(block.timestamp);
+        ) = loan.getPaymentBreakdown(block.timestamp);
 
         uint256 totalPayment = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 

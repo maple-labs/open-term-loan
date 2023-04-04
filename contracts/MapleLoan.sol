@@ -104,7 +104,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
             uint256 platformServiceFee_
-        ) = paymentBreakdown(block.timestamp);
+        ) = getPaymentBreakdown(block.timestamp);
 
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         delete refinanceCommitment;
@@ -178,7 +178,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     {
         uint256 calledPrincipal_;
 
-        ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = paymentBreakdown(block.timestamp);
+        ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = getPaymentBreakdown(block.timestamp);
 
         // If the loan is called, the principal being returned must be greater than the portion called.
         require(dateFunded != 0,                        "ML:MP:LOAN_INACTIVE");
@@ -399,29 +399,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         return _factory();
     }
 
-    function globals() public view override returns (address globals_) {
-        globals_ = IMapleProxyFactoryLike(_factory()).mapleGlobals();
-    }
-
-    function implementation() external view override returns (address implementation_) {
-        return _implementation();
-    }
-
-    function isCalled() public view override returns (bool isCalled_) {
-        isCalled_ = dateCalled != 0;
-    }
-
-    function isImpaired() public view override returns (bool isImpaired_) {
-        isImpaired_ = dateImpaired != 0;
-    }
-
-    function isInDefault() public view override returns (bool isInDefault_) {
-        uint40 defaultDate_ = defaultDate();
-
-        isInDefault_ = (defaultDate_ != 0) && (block.timestamp > defaultDate_);
-    }
-
-    function paymentBreakdown(uint256 timestamp_)
+    function getPaymentBreakdown(uint256 timestamp_)
         public view override returns (
             uint256 principal_,
             uint256 interest_,
@@ -453,6 +431,28 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
 
         principal_ = calledPrincipal;
+    }
+
+    function globals() public view override returns (address globals_) {
+        globals_ = IMapleProxyFactoryLike(_factory()).mapleGlobals();
+    }
+
+    function implementation() external view override returns (address implementation_) {
+        return _implementation();
+    }
+
+    function isCalled() public view override returns (bool isCalled_) {
+        isCalled_ = dateCalled != 0;
+    }
+
+    function isImpaired() public view override returns (bool isImpaired_) {
+        isImpaired_ = dateImpaired != 0;
+    }
+
+    function isInDefault() public view override returns (bool isInDefault_) {
+        uint40 defaultDate_ = defaultDate();
+
+        isInDefault_ = (defaultDate_ != 0) && (block.timestamp > defaultDate_);
     }
 
     function paymentDueDate() public view override returns (uint40 paymentDueDate_) {

@@ -164,7 +164,7 @@ contract MakePaymentSuccessTests is Test, Utils {
             uint256 expectedLateInterest,
             uint256 expectedDelegateServiceFee,
             uint256 expectedPlatformServiceFee
-        ) = loan.paymentBreakdown(block.timestamp);
+        ) = loan.getPaymentBreakdown(block.timestamp);
 
         // `expectedPaymentDueDate` and `expectedDefaultDate` will be 0 if all principal is returned.
         uint256 expectedPaymentDueDate = principalToReturn == principal ? 0 : datePaid + paymentInterval;

@@ -172,7 +172,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
      *  @return delegateServiceFee_ The portion of the total amount that will go towards delegate service fees.
      *  @return platformServiceFee_ The portion of the total amount that will go towards platform service fees.
      */
-    function paymentBreakdown(uint256 timestamp_)
+    function getPaymentBreakdown(uint256 timestamp_)
         external view returns (
             uint256 principal_,
             uint256 interest_,
