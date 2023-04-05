@@ -15,19 +15,18 @@ import {
 contract MakePaymentFailureTests is Test, Utils {
 
     MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
     MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
-        MockFactory factory = new MockFactory();
-
         factory.__setGlobals(address(globals));
 
         loan.__setFactory(address(factory));
     }
 
-    function test_makePayment_protocolPaused() external {
-        globals.__setProtocolPaused(true);
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+    function test_makePayment_paused() external {
+        globals.__setFunctionPaused(true);
+        vm.expectRevert("ML:PAUSED");
         loan.makePayment(0);
     }
 

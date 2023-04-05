@@ -34,10 +34,10 @@ contract AcceptNewTermsFailure is Test, Utils {
         loan.__setBorrower(borrower);
     }
 
-    function test_acceptNewTerms_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_acceptNewTerms_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.acceptNewTerms(address(0), 0, new bytes[](0));
     }
 

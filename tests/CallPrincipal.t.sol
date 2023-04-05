@@ -3,9 +3,9 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness } from "./utils/Harnesses.sol";
-import { MockERC20 }        from "./utils/Mocks.sol";
-import { Utils }            from "./utils/Utils.sol";
+import { MapleLoanHarness }                    from "./utils/Harnesses.sol";
+import { MockERC20, MockFactory, MockGlobals } from "./utils/Mocks.sol";
+import { Utils }                               from "./utils/Utils.sol";
 
 contract CallPrincipalTests is Test, Utils {
 
@@ -15,11 +15,23 @@ contract CallPrincipalTests is Test, Utils {
 
     address lender = makeAddr("lender");
 
-    MapleLoanHarness loan = new MapleLoanHarness();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
         loan.__setPrincipal(principal);
+    }
+
+    function test_callPrincipal_paused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("ML:PAUSED");
+        loan.callPrincipal(1);
     }
 
     function test_callPrincipal_notLender() external {

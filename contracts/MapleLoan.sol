@@ -35,16 +35,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
     uint256 internal constant HUNDRED_PERCENT = 1e6;
 
-    // NOTE: The following functions already check for paused state in the poolManager/loanManager, therefore no need to check here.
-    // * callPrincipal
-    // * fund
-    // * impair
-    // * removeCall
-    // * removeImpairment
-    // * repossess
-    // * setPendingLender -> Not implemented
-    modifier whenProtocolNotPaused() {
-        require(!IMapleGlobalsLike(globals()).protocolPaused(), "ML:PROTOCOL_PAUSED");
+    modifier whenNotPaused() {
+        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "ML:PAUSED");
         _;
     }
 
@@ -52,17 +44,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Administrative Functions                                                                                                       ***/
     /**************************************************************************************************************************************/
 
-    function migrate(address migrator_, bytes calldata arguments_) external override {
+    function migrate(address migrator_, bytes calldata arguments_) external override whenNotPaused {
         require(msg.sender == _factory(),        "ML:M:NOT_FACTORY");
         require(_migrate(migrator_, arguments_), "ML:M:FAILED");
     }
 
-    function setImplementation(address newImplementation_) external override {
+    function setImplementation(address newImplementation_) external override whenNotPaused {
         require(msg.sender == _factory(),               "ML:SI:NOT_FACTORY");
         require(_setImplementation(newImplementation_), "ML:SI:FAILED");
     }
 
-    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenProtocolNotPaused {
+    function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenNotPaused {
         require(msg.sender == borrower, "ML:U:NOT_BORROWER");
 
         emit Upgraded(toVersion_, arguments_);
@@ -74,7 +66,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Borrow Functions                                                                                                               ***/
     /**************************************************************************************************************************************/
 
-    function acceptBorrower() external override whenProtocolNotPaused {
+    function acceptBorrower() external override whenNotPaused {
         require(msg.sender == pendingBorrower, "ML:AB:NOT_PENDING_BORROWER");
 
         delete pendingBorrower;
@@ -83,7 +75,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
         require(msg.sender == borrower, "ML:ANT:NOT_BORROWER");
 
@@ -169,7 +161,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function makePayment(uint256 principalToReturn_)
-        external override whenProtocolNotPaused returns (
+        external override whenNotPaused
+        returns (
             uint256 interest_,
             uint256 lateInterest_,
             uint256 delegateServiceFee_,
@@ -227,7 +220,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function setPendingBorrower(address pendingBorrower_) external override {
+    function setPendingBorrower(address pendingBorrower_) external override whenNotPaused {
         require(msg.sender == borrower,                                    "ML:SPB:NOT_BORROWER");
         require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
@@ -238,7 +231,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Lend Functions                                                                                                                 ***/
     /**************************************************************************************************************************************/
 
-    function acceptLender() external override whenProtocolNotPaused {
+    function acceptLender() external override whenNotPaused {
         require(msg.sender == pendingLender, "ML:AL:NOT_PENDING_LENDER");
 
         delete pendingLender;
@@ -246,7 +239,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit LenderAccepted(lender = msg.sender);
     }
 
-    function callPrincipal(uint256 principalToReturn_) external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+    function callPrincipal(uint256 principalToReturn_)
+        external override whenNotPaused
+        returns (uint40 paymentDueDate_, uint40 defaultDate_)
+    {
         require(msg.sender == lender,                                       "ML:C:NOT_LENDER");
         require(dateFunded != 0,                                            "ML:C:LOAN_INACTIVE");
         require(principalToReturn_ != 0 && principalToReturn_ <= principal, "ML:C:INVALID_AMOUNT");
@@ -260,7 +256,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function fund() external override returns (uint256 fundsLent_, uint40 paymentDueDate_, uint40 defaultDate_) {
+    function fund() external override whenNotPaused returns (uint256 fundsLent_, uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:F:NOT_LENDER");
         require(dateFunded == 0,      "ML:F:LOAN_ACTIVE");
         require(principal != 0,       "ML:F:LOAN_CLOSED");
@@ -276,7 +272,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(ERC20Helper.transferFrom(fundsAsset, msg.sender, borrower, fundsLent_), "ML:F:TRANSFER_FROM_FAILED");
     }
 
-    function impair() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+    function impair() external override whenNotPaused returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:I:NOT_LENDER");
         require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
 
@@ -289,7 +285,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
         require(msg.sender == lender,                                                    "ML:PNT:NOT_LENDER");
         require(block.timestamp <= deadline_,                                            "ML:PNT:INVALID_DEADLINE");
@@ -304,7 +300,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeCall() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+    function removeCall() external override whenNotPaused returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:RC:NOT_LENDER");
         require(dateCalled != 0,      "ML:RC:NOT_CALLED");
 
@@ -317,7 +313,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function removeImpairment() external override returns (uint40 paymentDueDate_, uint40 defaultDate_) {
+    function removeImpairment() external override whenNotPaused returns (uint40 paymentDueDate_, uint40 defaultDate_) {
         require(msg.sender == lender, "ML:RI:NOT_LENDER");
         require(dateImpaired != 0,    "ML:RI:NOT_IMPAIRED");
 
@@ -329,7 +325,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
     }
 
-    function repossess(address destination_) external override returns (uint256 fundsRepossessed_) {
+    function repossess(address destination_) external override whenNotPaused returns (uint256 fundsRepossessed_) {
         require(msg.sender == lender, "ML:R:NOT_LENDER");
         require(isInDefault(),        "ML:R:NOT_IN_DEFAULT");
 
@@ -346,7 +342,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require((fundsRepossessed_ == 0) || ERC20Helper.transfer(fundsAsset_, destination_, fundsRepossessed_), "ML:R:TRANSFER_FAILED");
     }
 
-    function setPendingLender(address pendingLender_) external override {
+    function setPendingLender(address pendingLender_) external override whenNotPaused {
         require(msg.sender == lender, "ML:SPL:NOT_LENDER");
 
         emit PendingLenderSet(pendingLender = pendingLender_);
@@ -357,7 +353,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /**************************************************************************************************************************************/
 
     function rejectNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
-        external override whenProtocolNotPaused returns (bytes32 refinanceCommitment_)
+        external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
         require((msg.sender == borrower) || (msg.sender == lender), "ML:RNT:NO_AUTH");
 
@@ -371,7 +367,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit NewTermsRejected(refinanceCommitment_, refinancer_, deadline_, calls_);
     }
 
-    function skim(address token_, address destination_) external override whenProtocolNotPaused returns (uint256 skimmed_) {
+    function skim(address token_, address destination_) external override whenNotPaused returns (uint256 skimmed_) {
         address governor_ = IMapleGlobalsLike(globals()).governor();
 
         require(msg.sender == governor_ || msg.sender == borrower, "ML:S:NO_AUTH");

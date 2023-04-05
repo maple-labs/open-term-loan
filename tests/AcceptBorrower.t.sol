@@ -12,8 +12,8 @@ contract AcceptBorrowerTests is Test {
 
     address account = makeAddr("account");
 
-    MockFactory      factory = new MockFactory();
     MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
     MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
@@ -22,10 +22,10 @@ contract AcceptBorrowerTests is Test {
         loan.__setFactory(address(factory));
     }
 
-    function test_acceptBorrower_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_acceptBorrower_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.acceptBorrower();
     }
 

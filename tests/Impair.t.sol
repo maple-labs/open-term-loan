@@ -3,9 +3,9 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness } from "./utils/Harnesses.sol";
-import { MockERC20 }        from "./utils/Mocks.sol";
-import { Utils }            from "./utils/Utils.sol";
+import { MapleLoanHarness }                    from "./utils/Harnesses.sol";
+import { MockERC20, MockFactory, MockGlobals } from "./utils/Mocks.sol";
+import { Utils }                               from "./utils/Utils.sol";
 
 contract ImpairTests is Test, Utils {
 
@@ -13,10 +13,22 @@ contract ImpairTests is Test, Utils {
 
     address lender = makeAddr("lender");
 
-    MapleLoanHarness loan = new MapleLoanHarness();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
+    }
+
+    function test_impair_paused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("ML:PAUSED");
+        loan.impair();
     }
 
     function test_impair_notLender() external {

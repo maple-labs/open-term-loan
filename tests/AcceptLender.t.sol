@@ -22,10 +22,10 @@ contract AcceptLenderTests is Test {
         loan.__setFactory(address(factory));
     }
 
-    function test_acceptLender_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_acceptLender_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.acceptLender();
     }
 

@@ -29,10 +29,10 @@ contract SkimTests is Test, Utils {
         loan.__setFactory(address(factory));
     }
 
-    function test_skim_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_skim_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.skim(address(0), account);
     }
 

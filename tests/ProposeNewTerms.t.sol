@@ -14,22 +14,21 @@ contract ProposeNewTermsTests is Test, Utils {
     address lender     = makeAddr("lender");
     address refinancer = makeAddr("refinancer");
 
-    MockGlobals      globals = new MockGlobals();
     MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
-        MockFactory mockFactory = new MockFactory();
+        factory.__setGlobals(address(globals));
 
-        mockFactory.__setGlobals(address(globals));
-
-        loan.__setFactory(address(mockFactory));
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
     }
 
-    function test_proposeNewTerms_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_proposeNewTerms_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.proposeNewTerms(address(0), 0, new bytes[](0));
     }
 

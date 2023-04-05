@@ -3,8 +3,9 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness } from "./utils/Harnesses.sol";
-import { Utils }            from "./utils/Utils.sol";
+import { MapleLoanHarness }         from "./utils/Harnesses.sol";
+import { MockFactory, MockGlobals } from "./utils/Mocks.sol";
+import { Utils }                    from "./utils/Utils.sol";
 
 contract RemoveImpairmentTests is Test, Utils {
 
@@ -12,10 +13,22 @@ contract RemoveImpairmentTests is Test, Utils {
 
     address lender = makeAddr("lender");
 
-    MapleLoanHarness loan = new MapleLoanHarness();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
+    }
+
+    function test_removeImpairment_paused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("ML:PAUSED");
+        loan.removeImpairment();
     }
 
     function test_removeImpairment_notLender() external {

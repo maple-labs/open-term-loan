@@ -55,6 +55,8 @@ contract MockFactory is Spied {
 
 contract MockGlobals {
 
+    bool internal _isFunctionPaused;
+
     address public governor;
 
     bool public protocolPaused;
@@ -66,6 +68,10 @@ contract MockGlobals {
 
     mapping(bytes32 => mapping(address => bool)) public isFactory;
     mapping(bytes32 => mapping(address => bool)) public isInstanceOf;
+
+    function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
+        isFunctionPaused_ = _isFunctionPaused;
+    }
 
     function __setGovernor(address governor_) external {
         governor = governor_;
@@ -85,6 +91,10 @@ contract MockGlobals {
 
     function __setIsPoolAsset(address poolAsset_, bool isPoolAsset_) external {
         isPoolAsset[poolAsset_] = isPoolAsset_;
+    }
+
+    function __setFunctionPaused(bool paused_) external {
+        _isFunctionPaused = paused_;
     }
 
     function __setProtocolPaused(bool paused_) external {

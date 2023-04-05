@@ -24,6 +24,13 @@ contract SetPendingBorrowerTests is Test {
         loan.__setFactory(address(factory));
     }
 
+    function test_setPendingBorrower_paused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("ML:PAUSED");
+        loan.setPendingBorrower(newBorrower);
+    }
+
     function test_setPendingBorrower_notBorrower() external {
         vm.expectRevert("ML:SPB:NOT_BORROWER");
         loan.setPendingBorrower(newBorrower);

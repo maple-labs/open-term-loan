@@ -15,24 +15,23 @@ contract RejectNewTermsTests is Test, Utils {
 
     bytes[] calls = _encodeCall(abi.encodeWithSignature("setPaymentInterval(uint32)", 2_000_000));
 
-    MockGlobals      globals = new MockGlobals();
     MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
-        MockFactory mockFactory = new MockFactory();
-
-        mockFactory.__setGlobals(address(globals));
+        factory.__setGlobals(address(globals));
 
         loan.__setBorrower(borrower);
-        loan.__setFactory(address(mockFactory));
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
         loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, calls)));
     }
 
-    function test_rejectNewTerms_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_rejectNewTerms_paused() external {
+        globals.__setFunctionPaused(true);
 
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.rejectNewTerms(refinancer, block.timestamp, new bytes[](0));
     }
 

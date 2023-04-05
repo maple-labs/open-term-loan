@@ -23,11 +23,11 @@ contract UpgradeTests is Test {
         loan.__setFactory(address(factory));
     }
 
-    function test_upgrade_protocolPaused() external {
-        globals.__setProtocolPaused(true);
+    function test_upgrade_paused() external {
+        globals.__setFunctionPaused(true);
 
         vm.prank(borrower);
-        vm.expectRevert("ML:PROTOCOL_PAUSED");
+        vm.expectRevert("ML:PAUSED");
         loan.upgrade(1, "");
     }
 

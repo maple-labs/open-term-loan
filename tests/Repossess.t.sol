@@ -3,9 +3,15 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { MapleLoanHarness }              from "./utils/Harnesses.sol";
-import { MockERC20, MockRevertingERC20 } from "./utils/Mocks.sol";
-import { Utils }                         from "./utils/Utils.sol";
+import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
+
+import {
+    MockERC20,
+    MockRevertingERC20,
+    MockFactory,
+    MockGlobals
+} from "./utils/Mocks.sol";
 
 contract RepossessTests is Test, Utils {
 
@@ -14,10 +20,22 @@ contract RepossessTests is Test, Utils {
     address account = makeAddr("account");
     address lender  = makeAddr("lender");
 
-    MapleLoanHarness loan = new MapleLoanHarness();
+    MapleLoanHarness loan    = new MapleLoanHarness();
+    MockFactory      factory = new MockFactory();
+    MockGlobals      globals = new MockGlobals();
 
     function setUp() external {
+        factory.__setGlobals(address(globals));
+
+        loan.__setFactory(address(factory));
         loan.__setLender(lender);
+    }
+
+    function test_repossess_paused() external {
+        globals.__setFunctionPaused(true);
+
+        vm.expectRevert("ML:PAUSED");
+        loan.repossess(account);
     }
 
     function test_repossess_notLender() external {
