@@ -3,11 +3,11 @@ pragma solidity 0.8.7;
 
 interface IMapleGlobalsLike {
 
+    function canDeploy(address caller_) external view returns (bool canDeploy_);
+
     function governor() external view returns (address governor_);
 
     function isBorrower(address account_) external view returns (bool isBorrower_);
-
-    function isFactory(bytes32 factoryId_, address factory_) external view returns (bool isFactory_);
 
     function isFunctionPaused(bytes4 sig_) external view returns (bool isFunctionPaused_);
 

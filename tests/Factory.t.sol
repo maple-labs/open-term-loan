@@ -54,7 +54,23 @@ contract FactoryTests is Test {
         vm.stopPrank();
     }
 
+    function test_createInstance_cannotDeploy(bytes32 salt_) external {
+        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
+            borrower,
+            address(lender),
+            fundsAsset,
+            1,
+            [uint32(1), 1, 1],
+            [uint64(1), 1, 1, 1]
+        );
+
+        vm.expectRevert("LF:CI:CANNOT_DEPLOY");
+        address loan = factory.createInstance(arguments, salt_);
+    }
+
     function test_createInstance(bytes32 salt_) external {
+        globals.__setCanDeploy(true);
+
         bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
             borrower,
             address(lender),
@@ -78,23 +94,10 @@ contract FactoryTests is Test {
         // TODO: Change back to hardcoded address once IPFS hashes can be removed on compilation in Foundry.
         assertEq(loan, expectedAddress);
 
+        assertEq(MapleLoan(loan).implementation(), implementation);
+
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
-    }
-
-    function test_implementation_getter() external {
-        bytes memory arguments = MapleLoanInitializer(initializer).encodeArguments(
-            borrower,
-            address(lender),
-            fundsAsset,
-            1,
-            [uint32(1), 1, 1],
-            [uint64(1), 1, 1, 1]
-        );
-
-        MapleLoan loan = MapleLoan(factory.createInstance(arguments, keccak256(abi.encode(msg.sender))));
-
-        assertEq(loan.implementation(), implementation);
     }
 
 }

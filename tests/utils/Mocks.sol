@@ -55,6 +55,7 @@ contract MockFactory is Spied {
 
 contract MockGlobals {
 
+    bool internal _canDeploy;
     bool internal _isFunctionPaused;
 
     address public governor;
@@ -66,11 +67,22 @@ contract MockGlobals {
 
     mapping(address => uint256) public platformServiceFeeRate;
 
-    mapping(bytes32 => mapping(address => bool)) public isFactory;
     mapping(bytes32 => mapping(address => bool)) public isInstanceOf;
+
+    function canDeploy(address) external view returns (bool canDeploy_) {
+        canDeploy_ = _canDeploy;
+    }
 
     function isFunctionPaused(bytes4) external view returns (bool isFunctionPaused_) {
         isFunctionPaused_ = _isFunctionPaused;
+    }
+
+    function __setCanDeploy(bool canDeploy_) external {
+        _canDeploy = canDeploy_;
+    }
+
+    function __setFunctionPaused(bool paused_) external {
+        _isFunctionPaused = paused_;
     }
 
     function __setGovernor(address governor_) external {
@@ -81,10 +93,6 @@ contract MockGlobals {
         isBorrower[borrower_] = isBorrower_;
     }
 
-    function __setIsFactory(bytes32 factoryType_, address factory_, bool isFactory_) external {
-        isFactory[factoryType_][factory_] = isFactory_;
-    }
-
     function __setIsInstanceOf(bytes32 instanceId_, address instance_, bool isInstance_) external {
         isInstanceOf[instanceId_][instance_] = isInstance_;
     }
@@ -93,16 +101,12 @@ contract MockGlobals {
         isPoolAsset[poolAsset_] = isPoolAsset_;
     }
 
-    function __setFunctionPaused(bool paused_) external {
-        _isFunctionPaused = paused_;
+    function __setPlatformServiceFeeRate(address poolManager_, uint256 platformServiceFeeRate_) external {
+        platformServiceFeeRate[poolManager_] = platformServiceFeeRate_;
     }
 
     function __setProtocolPaused(bool paused_) external {
         protocolPaused = paused_;
-    }
-
-    function __setPlatformServiceFeeRate(address poolManager_, uint256 platformServiceFeeRate_) external {
-        platformServiceFeeRate[poolManager_] = platformServiceFeeRate_;
     }
 
 }
