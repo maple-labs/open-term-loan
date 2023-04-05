@@ -96,8 +96,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         lateFeeRate             = rates_[2];
         lateInterestPremiumRate = rates_[3];
 
-        // Globals stores rates as 1e6 but the loan needs it as 1e18.
-        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(ILenderLike(lender_).poolManager()) * 1e12);
+        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(ILenderLike(lender_).poolManager()));
 
         emit Initialized(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }

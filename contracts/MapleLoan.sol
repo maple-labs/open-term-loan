@@ -128,8 +128,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         ILenderLike lender_ = ILenderLike(lender);
 
-        // Globals stores rates as 1e6 but the loan needs it as 1e18.
-        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()) * 1e12);
+        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()));
 
         if (newPrincipal_ == 0) {
             // NOTE: All the principal has been paid back therefore clear the loan accounting.

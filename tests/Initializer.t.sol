@@ -221,7 +221,7 @@ contract InitializerTests is Test {
         assertEq(initializer.interestRate(),            validInterestRate);
         assertEq(initializer.lateFeeRate(),             validLateFeeRate);
         assertEq(initializer.lateInterestPremiumRate(), validLateInterestPremiumRate);
-        assertEq(initializer.platformServiceFeeRate(),  validPlatformServiceFeeRate * 1e12);
+        assertEq(initializer.platformServiceFeeRate(),  validPlatformServiceFeeRate);
     }
 
 }
