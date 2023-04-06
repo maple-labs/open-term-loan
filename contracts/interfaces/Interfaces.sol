@@ -17,6 +17,8 @@ interface IMapleGlobalsLike {
 
     function platformServiceFeeRate(address poolManager) external view returns (uint256 platformServiceFeeRate_);
 
+    function securityAdmin() external view returns (address securityAdmin_);
+
 }
 
 interface ILenderLike {

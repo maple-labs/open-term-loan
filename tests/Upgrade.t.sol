@@ -10,7 +10,8 @@ contract UpgradeTests is Test {
 
     event Upgraded(uint256 toVersion_, bytes arguments_);
 
-    address borrower = makeAddr("borrower");
+    address borrower      = makeAddr("borrower");
+    address securityAdmin = makeAddr("securityAdmin");
 
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockFactory      factory = new MockFactory();
@@ -18,6 +19,8 @@ contract UpgradeTests is Test {
 
     function setUp() external {
         factory.__setGlobals(address(globals));
+
+        globals.__setSecurityAdmin(securityAdmin);
 
         loan.__setBorrower(borrower);
         loan.__setFactory(address(factory));
@@ -31,12 +34,12 @@ contract UpgradeTests is Test {
         loan.upgrade(1, "");
     }
 
-    function test_upgrade_notBorrower() external {
-        vm.expectRevert("ML:U:NOT_BORROWER");
+    function test_upgrade_noAuth() external {
+        vm.expectRevert("ML:U:NO_AUTH");
         loan.upgrade(1, "");
     }
 
-    function test_upgrade_success() external {
+    function test_upgrade_success_asBorrower() external {
         factory.__expectCall();
         factory.upgradeInstance(1, "");
 
@@ -44,6 +47,17 @@ contract UpgradeTests is Test {
         emit Upgraded(1, "");
 
         vm.prank(borrower);
+        loan.upgrade(1, "");
+    }
+
+    function test_upgrade_success_asSecurityAdmin() external {
+        factory.__expectCall();
+        factory.upgradeInstance(1, "");
+
+        vm.expectEmit();
+        emit Upgraded(1, "");
+
+        vm.prank(securityAdmin);
         loan.upgrade(1, "");
     }
 
