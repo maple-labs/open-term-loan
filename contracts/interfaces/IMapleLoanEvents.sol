@@ -11,8 +11,8 @@ interface IMapleLoanEvents {
     event BorrowerAccepted(address indexed borrower_);
 
     /**
-     *  @dev   The next payment due date was restored to it's original value, reverting the action of the loan being called.
-     *  @param paymentDueDate_ The new next payment due date.
+     *  @dev   The lender reverted the action of the loan being called and the payment due date was restored to it's original value.
+     *  @param paymentDueDate_ The restored payment due date.
      *  @param defaultDate_    The date the loan will be in default.
      */
     event CallRemoved(uint40 paymentDueDate_, uint40 defaultDate_);
@@ -51,16 +51,16 @@ interface IMapleLoanEvents {
     );
 
     /**
-     *  @dev   The next payment due date was fast forwarded to the current time, activating the grace period.
+     *  @dev   The payment due date was fast forwarded to the current time, activating the grace period.
      *         This is emitted when the pool delegate wants to force a payment (or default).
-     *  @param paymentDueDate_ The new next payment due date.
+     *  @param paymentDueDate_ The new payment due date.
      *  @param defaultDate_    The date the loan will be in default.
      */
     event Impaired(uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
-     *  @dev   The next payment due date was restored to it's original value, reverting the action of loan impairment.
-     *  @param paymentDueDate_ The new next payment due date.
+     *  @dev   The payment due date was restored to it's original value, reverting the action of loan impairment.
+     *  @param paymentDueDate_ The restored payment due date.
      *  @param defaultDate_    The date the loan will be in default.
      */
     event ImpairmentRemoved(uint40 paymentDueDate_, uint40 defaultDate_);
@@ -111,9 +111,9 @@ interface IMapleLoanEvents {
      *  @param principalPaid_      The portion of the total amount that went towards paying down principal.
      *  @param interestPaid_       The portion of the total amount that went towards interest.
      *  @param lateInterestPaid_   The portion of the total amount that went towards late interest.
-     *  @param delegateServiceFee_ The portion of the total amount that went towards late interest.
-     *  @param platformServiceFee_ The portion of the total amount that went towards late interest.
-     *  @param paymentDueDate_     The new next payment due date.
+     *  @param delegateServiceFee_ The portion of the total amount that went towards delegate service fees.
+     *  @param platformServiceFee_ The portion of the total amount that went towards platform service fee.
+     *  @param paymentDueDate_     The new payment due date.
      *  @param defaultDate_        The date the loan will be in default.
      */
     event PaymentMade(
@@ -142,7 +142,7 @@ interface IMapleLoanEvents {
     /**
      *  @dev   The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
      *  @param principalToReturn_ The minimum amount of principal the borrower must return.
-     *  @param paymentDueDate_    The new next payment due date.
+     *  @param paymentDueDate_    The new payment due date.
      *  @param defaultDate_       The date the loan will be in default.
      */
     event PrincipalCalled(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
@@ -155,7 +155,7 @@ interface IMapleLoanEvents {
     event Repossessed(uint256 fundsRepossessed_, address indexed destination_);
 
     /**
-     *  @dev   Some token (neither fundsAsset nor collateralAsset) was removed from the loan.
+     *  @dev   Some token was removed from the loan.
      *  @param token_       The address of the token contract.
      *  @param amount_      The amount of token remove from the loan.
      *  @param destination_ The recipient of the token.

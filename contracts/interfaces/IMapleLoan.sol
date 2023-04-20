@@ -36,7 +36,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     /**
      *  @dev    The lender called the loan, giving the borrower a notice period within which to return principal and pro-rata interest.
      *  @param  principalToReturn_ The minimum amount of principal the borrower must return.
-     *  @return paymentDueDate_    The payment due date for returning the principal and pro-rate interest to the lender.
+     *  @return paymentDueDate_    The new payment due date for returning the principal and pro-rate interest to the lender.
      *  @return defaultDate_       The date the loan will be in default.
      */
     function callPrincipal(uint256 principalToReturn_) external returns (uint40 paymentDueDate_, uint40 defaultDate_);
@@ -50,7 +50,7 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function fund() external returns (uint256 fundsLent_, uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
-     *  @dev    Fast forward the next payment due date to the current time.
+     *  @dev    Fast forward the payment due date to the current time.
      *          This enables the pool delegate to force a payment (or default).
      *  @return paymentDueDate_ The new payment due date to result in the removal of the loan's impairment status.
      *  @return defaultDate_    The timestamp of the date the loan will be in default.

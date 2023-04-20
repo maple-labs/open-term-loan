@@ -68,7 +68,7 @@ interface IMapleRefinancer {
 
     /**
      *  @dev   Function to decrease the principal during a refinance.
-     *  @param amount_ The amount of which the value will increase by.
+     *  @param amount_ The amount of which the value will decrease by.
      */
     function decreasePrincipal(uint256 amount_) external;
 

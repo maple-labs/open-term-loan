@@ -44,7 +44,7 @@ interface IMapleLoanStorage {
     function delegateServiceFeeRate() external view returns (uint64 delegateServiceFeeRate_);
 
     /**
-     *  @dev The fundsAsset deposited by the lender to fund the loan.
+     *  @dev The address of the fundsAsset funding the loan.
      */
     function fundsAsset() external view returns (address asset_);
 
@@ -74,7 +74,7 @@ interface IMapleLoanStorage {
     function lender() external view returns (address lender_);
 
     /**
-     *  @dev The amount of time the borrower has, after the loan is called, to close the loan.
+     *  @dev The amount of time the borrower has, after the loan is called, to make a payment, paying back the called principal.
      */
     function noticePeriod() external view returns (uint32 noticePeriod_);
 
