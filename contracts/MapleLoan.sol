@@ -168,12 +168,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             uint256 platformServiceFee_
         )
     {
+        require(dateFunded != 0, "ML:MP:LOAN_INACTIVE");
+
         uint256 calledPrincipal_;
 
         ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = getPaymentBreakdown(block.timestamp);
 
         // If the loan is called, the principal being returned must be greater than the portion called.
-        require(dateFunded != 0,                        "ML:MP:LOAN_INACTIVE");
         require(principalToReturn_ <= principal,        "ML:MP:RETURNING_TOO_MUCH");
         require(principalToReturn_ >= calledPrincipal_, "ML:MP:INSUFFICIENT_FOR_CALL");
 
