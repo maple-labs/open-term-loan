@@ -59,6 +59,7 @@ contract InitializerTests is Test {
         globals.__setIsPoolAsset(validFundsAsset, true);
 
         lender.__setFactory(address(lenderFactory));
+        lender.__setFundsAsset(validFundsAsset);
 
         lenderFactory.__setGlobals(address(globals));
         lenderFactory.__setIsInstance(validLender, true);
@@ -152,8 +153,26 @@ contract InitializerTests is Test {
         );
     }
 
+    function test_initialize_differentFundsAsset() external {
+        address otherAsset = makeAddr("otherAsset");
+
+        globals.__setIsPoolAsset(otherAsset, true);
+
+        vm.expectRevert("MLI:I:DIFFERENT_ASSET");
+        vm.prank(address(factory));
+        initializer.__initialize(
+            validBorrower,
+            validLender,
+            otherAsset,
+            validPrincipalRequested,
+            [validGracePeriod, validNoticePeriod, validPaymentInterval],
+            [validDelegateServiceFeeRate, validInterestRate, validLateFeeRate, validLateInterestPremiumRate]
+        );
+    }
+
     function test_initialize_invalidLenderFactory() external {
         MockLender invalidLender = new MockLender();
+        invalidLender.__setFundsAsset(validFundsAsset);
 
         vm.expectRevert("MLI:I:INVALID_FACTORY");
         vm.prank(address(factory));
@@ -170,6 +189,7 @@ contract InitializerTests is Test {
     function test_initialize_invalidLenderFactoryInstance() external {
         MockLender invalidLender = new MockLender();
         invalidLender.__setFactory(address(lenderFactory));
+        invalidLender.__setFundsAsset(validFundsAsset);
 
         vm.expectRevert("MLI:I:INVALID_INSTANCE");
         vm.prank(address(factory));

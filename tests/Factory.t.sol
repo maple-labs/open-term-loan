@@ -42,6 +42,7 @@ contract FactoryTests is Test {
 
         lender.__setFactory(address(lenderFactory));
         lender.__setPoolManager(poolManager);
+        lender.__setFundsAsset(fundsAsset);
 
         lenderFactory.__setGlobals(address(globals));
         lenderFactory.__setIsInstance(address(lender), true);

@@ -125,6 +125,7 @@ contract MockImplementation {
 contract MockLender is Spied {
 
     address public factory;
+    address public fundsAsset;
     address public poolManager;
 
     function claim(
@@ -137,6 +138,10 @@ contract MockLender is Spied {
 
     function __setFactory(address factory_) external {
         factory = factory_;
+    }
+
+    function __setFundsAsset(address fundsAsset_) external {
+        fundsAsset = fundsAsset_;
     }
 
     function __setPoolManager(address poolManager_) external {
