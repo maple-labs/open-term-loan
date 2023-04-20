@@ -103,10 +103,10 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
-        for (uint256 i; i < calls_.length;) {
-            ( bool success, ) = refinancer_.delegatecall(calls_[i]);
+        for (uint256 i_; i_ < calls_.length;) {
+            ( bool success, ) = refinancer_.delegatecall(calls_[i_]);
             require(success, "ML:ANT:FAILED");
-            unchecked { ++i; }
+            unchecked { ++i_; }
         }
 
         address fundsAsset_   = fundsAsset;
