@@ -368,6 +368,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function skim(address token_, address destination_) external override whenNotPaused returns (uint256 skimmed_) {
+        require(destination_ != address(0), "ML:S:ZERO_ADDRESS");
+
         address governor_ = IMapleGlobalsLike(globals()).governor();
 
         require(msg.sender == governor_ || msg.sender == borrower, "ML:S:NO_AUTH");

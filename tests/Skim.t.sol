@@ -36,6 +36,11 @@ contract SkimTests is Test, Utils {
         loan.skim(address(0), account);
     }
 
+    function test_skim_zeroAddress() external {
+        vm.expectRevert("ML:S:ZERO_ADDRESS");
+        loan.skim(address(0), address(0));
+    }
+
     function test_skim_notBorrower() external {
         vm.expectRevert("ML:S:NO_AUTH");
         loan.skim(address(0), account);
