@@ -278,6 +278,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         require(msg.sender == lender, "ML:I:NOT_LENDER");
         require(dateFunded != 0,      "ML:I:LOAN_INACTIVE");
 
+        // NOTE: Impairing an already-impaired loan simply updates the `dateImpaired`, which can push the due date further.
         dateImpaired = _uint40(block.timestamp);
 
         emit Impaired(
