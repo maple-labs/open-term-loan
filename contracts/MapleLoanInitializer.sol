@@ -10,10 +10,10 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function encodeArguments(
-        address borrower_,
-        address lender_,
-        address fundsAsset_,
-        uint256 principalRequested_,
+        address          borrower_,
+        address          lender_,
+        address          fundsAsset_,
+        uint256          principalRequested_,
         uint32[3] memory termDetails_,
         uint64[4] memory rates_
     ) external pure override returns (bytes memory encodedArguments_) {
@@ -22,10 +22,10 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     function decodeArguments(bytes calldata encodedArguments_)
         public pure override returns (
-            address borrower_,
-            address lender_,
-            address fundsAsset_,
-            uint256 principalRequested_,
+            address          borrower_,
+            address          lender_,
+            address          fundsAsset_,
+            uint256          principalRequested_,
             uint32[3] memory termDetails_,
             uint64[4] memory rates_
         )
@@ -42,10 +42,10 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
     fallback() external {
         (
-            address borrower_,
-            address lender_,
-            address fundsAsset_,
-            uint256 principalRequested_,
+            address          borrower_,
+            address          lender_,
+            address          fundsAsset_,
+            uint256          principalRequested_,
             uint32[3] memory termDetails_,
             uint64[4] memory rates_
         ) = decodeArguments(msg.data);
@@ -54,10 +54,10 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
     }
 
     function _initialize(
-        address borrower_,
-        address lender_,
-        address fundsAsset_,
-        uint256 principalRequested_,
+        address          borrower_,
+        address          lender_,
+        address          fundsAsset_,
+        uint256          principalRequested_,
         uint32[3] memory termDetails_,
         uint64[4] memory rates_
     )

@@ -42,12 +42,12 @@ interface IMapleLoanEvents {
      *                                 [3]: lateInterestPremiumRate
      */
     event Initialized(
-        address indexed borrower_,
-        address indexed lender_,
-        address indexed fundsAsset_,
-        uint256 principalRequested_,
-        uint32[3] termDetails_,
-        uint64[4] rates_
+        address   indexed borrower_,
+        address   indexed lender_,
+        address   indexed fundsAsset_,
+        uint256           principalRequested_,
+        uint32[3]         termDetails_,
+        uint64[4]         rates_
     );
 
     /**
@@ -118,13 +118,13 @@ interface IMapleLoanEvents {
      */
     event PaymentMade(
         address indexed lender_,
-        uint256 principalPaid_,
-        uint256 interestPaid_,
-        uint256 lateInterestPaid_,
-        uint256 delegateServiceFee_,
-        uint256 platformServiceFee_,
-        uint40  paymentDueDate_,
-        uint40  defaultDate_
+        uint256         principalPaid_,
+        uint256         interestPaid_,
+        uint256         lateInterestPaid_,
+        uint256         delegateServiceFee_,
+        uint256         platformServiceFee_,
+        uint40          paymentDueDate_,
+        uint40          defaultDate_
     );
 
     /**

@@ -23,10 +23,10 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      *  @return encodedArguments_  The encoded arguments for initializing a loan.
      */
     function encodeArguments(
-        address borrower_,
-        address lender_,
-        address fundsAsset_,
-        uint256 principalRequested_,
+        address          borrower_,
+        address          lender_,
+        address          fundsAsset_,
+        uint256          principalRequested_,
         uint32[3] memory termDetails_,
         uint64[4] memory rates_
     ) external pure returns (bytes memory encodedArguments_);
@@ -50,10 +50,10 @@ interface IMapleLoanInitializer is IMapleLoanEvents {
      */
     function decodeArguments(bytes calldata encodedArguments_) external pure
         returns (
-            address borrower_,
-            address lender_,
-            address fundsAsset_,
-            uint256 principalRequested_,
+            address          borrower_,
+            address          lender_,
+            address          fundsAsset_,
+            uint256          principalRequested_,
             uint32[3] memory termDetails_,
             uint64[4] memory rates_
         );
