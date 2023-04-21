@@ -77,7 +77,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
-        require(msg.sender == borrower,                "ML:ANT:NOT_BORROWER");
+        address borrower_ = borrower;
+
+        require(msg.sender == borrower_,               "ML:ANT:NOT_BORROWER");
         require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
         require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
 
@@ -115,17 +117,17 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 interestAndFees_ = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
+        ILenderLike lender_ = ILenderLike(lender);
+
         require(
             ERC20Helper.transferFrom(
                 fundsAsset_,
-                borrower,
-                address(lender),
+                borrower_,
+                address(lender_),
                 (netPrincipalToReturnToLender_ > 0 ? _uint256(netPrincipalToReturnToLender_) : 0) + interestAndFees_
             ),
             "ML:ANT:TRANSFER_FAILED"
         );
-
-        ILenderLike lender_ = ILenderLike(lender);
 
         platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()));
 
@@ -152,7 +154,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Principal has increased in the Loan, so Loan pulls funds from Lender.
         if (netPrincipalToReturnToLender_ < 0) {
             require(
-                ERC20Helper.transferFrom(fundsAsset_, address(lender_), borrower, _uint256(netPrincipalToReturnToLender_ * -1)),
+                ERC20Helper.transferFrom(fundsAsset_, address(lender_), borrower_, _uint256(netPrincipalToReturnToLender_ * -1)),
                 "ML:ANT:TRANSFER_FAILED"
             );
         }
@@ -171,7 +173,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 calledPrincipal_;
 
-        ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_) = getPaymentBreakdown(block.timestamp);
+        ( calledPrincipal_, interest_, lateInterest_, delegateServiceFee_, platformServiceFee_ ) = getPaymentBreakdown(block.timestamp);
 
         // If the loan is called, the principal being returned must be greater than the portion called.
         require(principalToReturn_ <= principal,        "ML:MP:RETURNING_TOO_MUCH");
@@ -195,10 +197,11 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             }
         }
 
-        uint40 paymentDueDate_ = paymentDueDate();
+        address lender_         = lender;
+        uint40  paymentDueDate_ = paymentDueDate();
 
         emit PaymentMade(
-            lender,
+            lender_,
             principalToReturn_,
             interest_,
             lateInterest_,
@@ -208,9 +211,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             defaultDate()
         );
 
-        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, lender, total_), "ML:MP:TRANSFER_FROM_FAILED");
+        require(ERC20Helper.transferFrom(fundsAsset, msg.sender, lender_, total_), "ML:MP:TRANSFER_FROM_FAILED");
 
-        ILenderLike(lender).claim(
+        ILenderLike(lender_).claim(
             _int256(principalToReturn_),
             interest_ + lateInterest_,
             delegateServiceFee_,
@@ -408,7 +411,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         uint40 startDate_ = _maxDate(datePaid, dateFunded);  // Timestamp when new interest starts accruing.
 
         // Return all zeros if the loan has not been funded yet or if the given timestamp is not greater than the start date.
-        if (startDate_ == 0 || timestamp_ <= startDate_) return (calledPrincipal, 0, 0, 0, 0);
+        if (startDate_ == 0 || timestamp_ <= startDate_) return ( calledPrincipal, 0, 0, 0, 0 );
 
         uint40 paymentDueDate_ = paymentDueDate();
 
@@ -556,7 +559,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         lateInterest_ =
             _getProRatedAmount(principal_, lateInterestPremiumRate_, lateInterval_) +
-            (principal_ * lateFeeRate_ / HUNDRED_PERCENT);
+            ((principal_ * lateFeeRate_) / HUNDRED_PERCENT);
     }
 
     function _getProRatedAmount(uint256 amount_, uint256 rate_, uint32 interval_) internal pure returns (uint256 proRatedAmount_) {
