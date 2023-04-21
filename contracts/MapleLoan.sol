@@ -77,16 +77,15 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused returns (bytes32 refinanceCommitment_)
     {
-        require(msg.sender == borrower, "ML:ANT:NOT_BORROWER");
+        require(msg.sender == borrower,                "ML:ANT:NOT_BORROWER");
+        require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
+        require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
 
         // NOTE: A zero refinancer address and/or empty calls array will never (probabilistically) match a refinance commitment in storage.
         require(
             refinanceCommitment == (refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_)),
             "ML:ANT:COMMITMENT_MISMATCH"
         );
-
-        require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
-        require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
 
         uint256 previousPrincipal_ = principal;
 

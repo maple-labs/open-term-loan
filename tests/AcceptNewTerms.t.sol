@@ -46,12 +46,6 @@ contract AcceptNewTermsFailure is Test, Utils {
         loan.acceptNewTerms(address(0), 0, new bytes[](0));
     }
 
-    function test_acceptNewTerms_mismatchedCommitment() external {
-        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
-        vm.prank(borrower);
-        loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
-    }
-
     function test_acceptNewTerms_invalidRefinancer() external {
         loan.__setRefinanceCommitment(keccak256(abi.encode(address(0), block.timestamp, new bytes[](0))));
 
@@ -76,6 +70,12 @@ contract AcceptNewTermsFailure is Test, Utils {
 
         loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, new bytes[](0))));
 
+        vm.prank(borrower);
+        loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
+    }
+
+    function test_acceptNewTerms_mismatchedCommitment() external {
+        vm.expectRevert("ML:ANT:COMMITMENT_MISMATCH");
         vm.prank(borrower);
         loan.acceptNewTerms(address(refinancer), block.timestamp, new bytes[](0));
     }
