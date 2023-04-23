@@ -127,7 +127,8 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function setPendingLender(address pendingLender_) external;
 
     /**
-     *  @dev    Remove all token that is not `fundsAsset`.
+     *  @dev    Remove all available balance of a specified token.
+     *          NOTE: Open Term Loans are not designed to hold custody of tokens, so this is designed as a safety feature.
      *  @param  token_       The address of the token contract.
      *  @param  destination_ The recipient of the token.
      *  @return skimmed_     The amount of token removed from the loan.
