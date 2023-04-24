@@ -3,7 +3,7 @@ pragma solidity 0.8.7;
 
 import { IMapleLoanInitializer } from "./interfaces/IMapleLoanInitializer.sol";
 
-import { ILenderLike, IMapleGlobalsLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -72,17 +72,17 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
 
         address globals_ = IMapleProxyFactoryLike(msg.sender).mapleGlobals();
 
-        require((borrower = borrower_) != address(0),                 "MLI:I:ZERO_BORROWER");
-        require(IMapleGlobalsLike(globals_).isBorrower(borrower_),    "MLI:I:INVALID_BORROWER");
-        require(IMapleGlobalsLike(globals_).isPoolAsset(fundsAsset_), "MLI:I:INVALID_FUNDS_ASSET");
+        require((borrower = borrower_) != address(0),            "MLI:I:ZERO_BORROWER");
+        require(IGlobalsLike(globals_).isBorrower(borrower_),    "MLI:I:INVALID_BORROWER");
+        require(IGlobalsLike(globals_).isPoolAsset(fundsAsset_), "MLI:I:INVALID_FUNDS_ASSET");
 
         require((lender = lender_) != address(0), "MLI:I:ZERO_LENDER");
 
         address loanManagerFactory_ = ILenderLike(lender_).factory();
 
-        require(ILenderLike(lender_).fundsAsset() == fundsAsset_,                                         "MLI:I:DIFFERENT_ASSET");
-        require(IMapleGlobalsLike(globals_).isInstanceOf("OT_LOAN_MANAGER_FACTORY", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
-        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),                          "MLI:I:INVALID_INSTANCE");
+        require(ILenderLike(lender_).fundsAsset() == fundsAsset_,                                    "MLI:I:DIFFERENT_ASSET");
+        require(IGlobalsLike(globals_).isInstanceOf("OT_LOAN_MANAGER_FACTORY", loanManagerFactory_), "MLI:I:INVALID_FACTORY");
+        require(IMapleProxyFactoryLike(loanManagerFactory_).isInstance(lender_),                     "MLI:I:INVALID_INSTANCE");
 
         fundsAsset = fundsAsset_;
 
@@ -97,7 +97,7 @@ contract MapleLoanInitializer is IMapleLoanInitializer, MapleLoanStorage {
         lateFeeRate             = rates_[2];
         lateInterestPremiumRate = rates_[3];
 
-        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals_).platformServiceFeeRate(ILenderLike(lender_).poolManager()));
+        platformServiceFeeRate = uint64(IGlobalsLike(globals_).platformServiceFeeRate(ILenderLike(lender_).poolManager()));
 
         emit Initialized(borrower_, lender_, fundsAsset_, principalRequested_, termDetails_, rates_);
     }

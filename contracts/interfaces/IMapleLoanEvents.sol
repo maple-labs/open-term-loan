@@ -26,6 +26,21 @@ interface IMapleLoanEvents {
     event Funded(uint256 amount_, uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
+     *  @dev   The payment due date was fast forwarded to the current time, activating the grace period.
+     *         This is emitted when the pool delegate wants to force a payment (or default).
+     *  @param paymentDueDate_ The new payment due date.
+     *  @param defaultDate_    The date the loan will be in default.
+     */
+    event Impaired(uint40 paymentDueDate_, uint40 defaultDate_);
+
+    /**
+     *  @dev   The payment due date was restored to it's original value, reverting the action of loan impairment.
+     *  @param paymentDueDate_ The restored payment due date.
+     *  @param defaultDate_    The date the loan will be in default.
+     */
+    event ImpairmentRemoved(uint40 paymentDueDate_, uint40 defaultDate_);
+
+    /**
      *  @dev   Loan was initialized.
      *  @param borrower_           The address of the borrower.
      *  @param lender_             The address of the lender.
@@ -49,21 +64,6 @@ interface IMapleLoanEvents {
         uint32[3]         termDetails_,
         uint64[4]         rates_
     );
-
-    /**
-     *  @dev   The payment due date was fast forwarded to the current time, activating the grace period.
-     *         This is emitted when the pool delegate wants to force a payment (or default).
-     *  @param paymentDueDate_ The new payment due date.
-     *  @param defaultDate_    The date the loan will be in default.
-     */
-    event Impaired(uint40 paymentDueDate_, uint40 defaultDate_);
-
-    /**
-     *  @dev   The payment due date was restored to it's original value, reverting the action of loan impairment.
-     *  @param paymentDueDate_ The restored payment due date.
-     *  @param defaultDate_    The date the loan will be in default.
-     */
-    event ImpairmentRemoved(uint40 paymentDueDate_, uint40 defaultDate_);
 
     /**
      *  @dev   Lender was accepted, and set to a new account.
@@ -97,13 +97,6 @@ interface IMapleLoanEvents {
      *  @param calls_               The individual calls for the refinancer contract.
      */
     event NewTermsRejected(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
-
-    /**
-     *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
-     *  @param principalReturned_  The amount of principal returned.
-     *  @param principalRemaining_ The amount of principal remaining on the loan.
-     */
-    event PrincipalReturned(uint256 principalReturned_, uint256 principalRemaining_);
 
     /**
      *  @dev   Payments were made.
@@ -146,6 +139,13 @@ interface IMapleLoanEvents {
      *  @param defaultDate_       The date the loan will be in default.
      */
     event PrincipalCalled(uint256 principalToReturn_, uint40 paymentDueDate_, uint40 defaultDate_);
+
+    /**
+     *  @dev   Principal was returned to lender, to close the loan or return future interest payments.
+     *  @param principalReturned_  The amount of principal returned.
+     *  @param principalRemaining_ The amount of principal remaining on the loan.
+     */
+    event PrincipalReturned(uint256 principalReturned_, uint256 principalRemaining_);
 
     /**
      *  @dev   The loan was in default and funds and collateral was repossessed by the lender.

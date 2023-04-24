@@ -8,7 +8,7 @@ import { MapleProxiedInternals } from "../modules/maple-proxy-factory/contracts/
 
 import { IMapleLoan } from "./interfaces/IMapleLoan.sol";
 
-import { IMapleGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
+import { IGlobalsLike, ILenderLike, IMapleProxyFactoryLike } from "./interfaces/Interfaces.sol";
 
 import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
@@ -65,7 +65,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function upgrade(uint256 toVersion_, bytes calldata arguments_) external override whenNotPaused {
-        require(msg.sender == borrower || msg.sender == IMapleGlobalsLike(globals()).securityAdmin(), "ML:U:NO_AUTH");
+        require(msg.sender == borrower || msg.sender == IGlobalsLike(globals()).securityAdmin(), "ML:U:NO_AUTH");
 
         emit Upgraded(toVersion_, arguments_);
 
@@ -87,9 +87,6 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused onlyBorrower returns (bytes32 refinanceCommitment_)
     {
-        address borrower_ = borrower;
-
-        require(msg.sender == borrower_,               "ML:ANT:NOT_BORROWER");
         require(refinancer_.code.length != uint256(0), "ML:ANT:INVALID_REFINANCER");
         require(block.timestamp <= deadline_,          "ML:ANT:EXPIRED_COMMITMENT");
 
@@ -127,6 +124,8 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
 
         uint256 interestAndFees_ = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
 
+        address borrower_ = borrower;
+
         ILenderLike lender_ = ILenderLike(lender);
 
         require(
@@ -139,7 +138,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             "ML:ANT:TRANSFER_FAILED"
         );
 
-        platformServiceFeeRate = uint64(IMapleGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()));
+        platformServiceFeeRate = uint64(IGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()));
 
         if (newPrincipal_ == 0) {
             // NOTE: All the principal has been paid back therefore clear the loan accounting.
@@ -233,7 +232,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function setPendingBorrower(address pendingBorrower_) external override whenNotPaused onlyBorrower {
-        require(IMapleGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
+        require(IGlobalsLike(globals()).isBorrower(pendingBorrower_), "ML:SPB:INVALID_BORROWER");
 
         emit PendingBorrowerSet(pendingBorrower = pendingBorrower_);
     }
@@ -296,9 +295,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused onlyLender returns (bytes32 refinanceCommitment_)
     {
-        require(block.timestamp <= deadline_,                                            "ML:PNT:INVALID_DEADLINE");
-        require(IMapleGlobalsLike(globals()).isInstanceOf("OT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
-        require(calls_.length > 0,                                                       "ML:PNT:EMPTY_CALLS");
+        require(block.timestamp <= deadline_,                                       "ML:PNT:INVALID_DEADLINE");
+        require(IGlobalsLike(globals()).isInstanceOf("OT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
+        require(calls_.length > 0,                                                  "ML:PNT:EMPTY_CALLS");
 
         emit NewTermsProposed(
             refinanceCommitment = refinanceCommitment_ = _getRefinanceCommitment(refinancer_, deadline_, calls_),
@@ -373,7 +372,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function skim(address token_, address destination_) external override whenNotPaused returns (uint256 skimmed_) {
         require(destination_ != address(0), "ML:S:ZERO_ADDRESS");
 
-        address governor_ = IMapleGlobalsLike(globals()).governor();
+        address governor_ = IGlobalsLike(globals()).governor();
 
         require(msg.sender == governor_ || msg.sender == borrower, "ML:S:NO_AUTH");
 
@@ -489,18 +488,18 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     /*** Internal View Functions                                                                                                        ***/
     /**************************************************************************************************************************************/
 
-    function _dueDates() internal view returns (uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_) {
-        callDueDate_     = _getCallDueDate(dateCalled, noticePeriod);
-        impairedDueDate_ = _getImpairedDueDate(dateImpaired);
-        normalDueDate_   = _getNormalDueDate(dateFunded, datePaid, paymentInterval);
-    }
-
     function _defaultDates() internal view returns (uint40 callDefaultDate_, uint40 impairedDefaultDate_, uint40 normalDefaultDate_) {
         ( uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_ ) = _dueDates();
 
         callDefaultDate_     = _getCallDefaultDate(callDueDate_);
         impairedDefaultDate_ = _getImpairedDefaultDate(impairedDueDate_, gracePeriod);
         normalDefaultDate_   = _getNormalDefaultDate(normalDueDate_, gracePeriod);
+    }
+
+    function _dueDates() internal view returns (uint40 callDueDate_, uint40 impairedDueDate_, uint40 normalDueDate_) {
+        callDueDate_     = _getCallDueDate(dateCalled, noticePeriod);
+        impairedDueDate_ = _getImpairedDueDate(dateImpaired);
+        normalDueDate_   = _getNormalDueDate(dateFunded, datePaid, paymentInterval);
     }
 
     function _getRefinanceCommitment(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
@@ -518,7 +517,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function _revertIfPaused() internal view {
-        require(!IMapleGlobalsLike(globals()).isFunctionPaused(msg.sig), "ML:PAUSED");
+        require(!IGlobalsLike(globals()).isFunctionPaused(msg.sig), "ML:PAUSED");
     }
 
     /**************************************************************************************************************************************/
