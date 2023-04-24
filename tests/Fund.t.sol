@@ -32,7 +32,7 @@ contract FundTests is Test, Utils {
     }
 
     function test_fund_notLender() external {
-        vm.expectRevert("ML:F:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.fund();
     }
 

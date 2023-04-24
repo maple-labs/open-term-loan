@@ -32,7 +32,7 @@ contract RemoveCallTests is Test, Utils {
     }
 
     function test_removeCall_notLender() external {
-        vm.expectRevert("ML:RC:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.removeCall();
     }
 

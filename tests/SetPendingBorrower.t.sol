@@ -32,7 +32,7 @@ contract SetPendingBorrowerTests is Test {
     }
 
     function test_setPendingBorrower_notBorrower() external {
-        vm.expectRevert("ML:SPB:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.setPendingBorrower(newBorrower);
     }
 

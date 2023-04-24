@@ -32,7 +32,7 @@ contract ImpairTests is Test, Utils {
     }
 
     function test_impair_notLender() external {
-        vm.expectRevert("ML:I:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.impair();
     }
 

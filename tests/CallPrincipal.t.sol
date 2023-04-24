@@ -35,7 +35,7 @@ contract CallPrincipalTests is Test, Utils {
     }
 
     function test_callPrincipal_notLender() external {
-        vm.expectRevert("ML:C:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.callPrincipal(1);
     }
 

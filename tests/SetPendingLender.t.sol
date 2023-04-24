@@ -31,7 +31,7 @@ contract SetPendingLenderTests is Test {
     }
 
     function test_setPendingLender_notLender() external {
-        vm.expectRevert("ML:SPL:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.setPendingLender(newLender);
     }
 

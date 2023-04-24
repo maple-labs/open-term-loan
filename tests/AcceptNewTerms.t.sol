@@ -42,7 +42,7 @@ contract AcceptNewTermsFailure is Test, Utils {
     }
 
     function test_acceptNewTerms_notBorrower() external {
-        vm.expectRevert("ML:ANT:NOT_BORROWER");
+        vm.expectRevert("ML:NOT_BORROWER");
         loan.acceptNewTerms(address(0), 0, new bytes[](0));
     }
 

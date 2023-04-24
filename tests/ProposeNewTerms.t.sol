@@ -33,7 +33,7 @@ contract ProposeNewTermsTests is Test, Utils {
     }
 
     function test_proposeNewTerms_notLender() external {
-        vm.expectRevert("ML:PNT:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.proposeNewTerms(address(0), 0, new bytes[](0));
     }
 

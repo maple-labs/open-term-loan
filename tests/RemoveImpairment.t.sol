@@ -32,7 +32,7 @@ contract RemoveImpairmentTests is Test, Utils {
     }
 
     function test_removeImpairment_notLender() external {
-        vm.expectRevert("ML:RI:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.removeImpairment();
     }
 

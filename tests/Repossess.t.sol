@@ -39,7 +39,7 @@ contract RepossessTests is Test, Utils {
     }
 
     function test_repossess_notLender() external {
-        vm.expectRevert("ML:R:NOT_LENDER");
+        vm.expectRevert("ML:NOT_LENDER");
         loan.repossess(account);
     }
 
