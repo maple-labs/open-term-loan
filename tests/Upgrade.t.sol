@@ -39,14 +39,9 @@ contract UpgradeTests is Test {
         loan.upgrade(1, "");
     }
 
-    function test_upgrade_success_asBorrower() external {
-        factory.__expectCall();
-        factory.upgradeInstance(1, "");
-
-        vm.expectEmit();
-        emit Upgraded(1, "");
-
+    function test_upgrade_noAuth_asBorrower() external {
         vm.prank(borrower);
+        vm.expectRevert("ML:U:NO_AUTH");
         loan.upgrade(1, "");
     }
 
