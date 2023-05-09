@@ -21,6 +21,7 @@ contract ProposeNewTermsTests is Test, Utils {
     function setUp() external {
         factory.__setGlobals(address(globals));
 
+        loan.__setDateFunded(block.timestamp);
         loan.__setFactory(address(factory));
         loan.__setLender(lender);
     }
@@ -35,6 +36,14 @@ contract ProposeNewTermsTests is Test, Utils {
     function test_proposeNewTerms_notLender() external {
         vm.expectRevert("ML:NOT_LENDER");
         loan.proposeNewTerms(address(0), 0, new bytes[](0));
+    }
+
+    function test_proposeNewTerms_notFunded() external {
+        loan.__setDateFunded(0);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:PNT:LOAN_INACTIVE");
+        loan.proposeNewTerms(refinancer, block.timestamp + 1, new bytes[](0));
     }
 
     function test_proposeNewTerms_invalidRefinancer() external {

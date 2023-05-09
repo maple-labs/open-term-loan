@@ -295,6 +295,7 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     function proposeNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused onlyLender returns (bytes32 refinanceCommitment_)
     {
+        require(dateFunded != 0,                                                    "ML:PNT:LOAN_INACTIVE");
         require(block.timestamp <= deadline_,                                       "ML:PNT:INVALID_DEADLINE");
         require(IGlobalsLike(globals()).isInstanceOf("OT_REFINANCER", refinancer_), "ML:PNT:INVALID_REFINANCER");
         require(calls_.length > 0,                                                  "ML:PNT:EMPTY_CALLS");
