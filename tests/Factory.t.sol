@@ -99,6 +99,8 @@ contract FactoryTests is Test {
 
         assertTrue(!factory.isLoan(address(1)));
         assertTrue( factory.isLoan(loan));
+
+        assertEq(MapleLoan(loan).HUNDRED_PERCENT(), 1e6);
     }
 
 }

@@ -150,6 +150,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function globals() external view returns (address globals_);
 
     /**
+     *  @dev The value that represents 100%, to be easily comparable with the loan rates.
+     */
+    function HUNDRED_PERCENT() external pure returns (uint256 hundredPercent_);
+
+    /**
      *  @dev Whether the loan is called.
      */
     function isCalled() external view returns (bool isCalled_);
