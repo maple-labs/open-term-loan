@@ -3,8 +3,9 @@ pragma solidity 0.8.7;
 
 import { Test } from "../modules/forge-std/src/Test.sol";
 
-import { Utils }            from "./utils/Utils.sol";
 import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
+
 import {
     MockERC20,
     MockFactory,

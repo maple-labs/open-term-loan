@@ -5,8 +5,8 @@ import { console2, Test } from "../modules/forge-std/src/Test.sol";
 
 import { MapleRefinancer } from "../contracts/MapleRefinancer.sol";
 
-import { Utils }            from "./utils/Utils.sol";
 import { MapleLoanHarness } from "./utils/Harnesses.sol";
+import { Utils }            from "./utils/Utils.sol";
 
 import {
     MockERC20,

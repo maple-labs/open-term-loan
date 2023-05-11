@@ -143,12 +143,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             // NOTE: All the principal has been paid back therefore clear the loan accounting.
             _clearLoanAccounting();
         } else {
-            // NOTE: A refinance clears a loan impair and called status, and this is cheaper to always do.
             datePaid = _uint40(block.timestamp);
 
+            // NOTE: Accepting new terms always results in the a call and/or impairment being removed.
             delete calledPrincipal;
-            delete dateImpaired;
             delete dateCalled;
+            delete dateImpaired;
         }
 
         lender_.claim(
@@ -193,12 +193,12 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
             _clearLoanAccounting();
             emit PrincipalReturned(principalToReturn_, 0);
         } else {
-            // NOTE: a payment clears loan impair and called status, and this is cheaper to always do.
+            datePaid = _uint40(block.timestamp);
+
+            // NOTE: Making a payment always results in the a call and/or impairment being removed.
+            delete calledPrincipal;
             delete dateCalled;
             delete dateImpaired;
-            delete calledPrincipal;
-
-            datePaid = _uint40(block.timestamp);
 
             if (principalToReturn_ != 0) {
                 emit PrincipalReturned(principalToReturn_, principal -= principalToReturn_);
@@ -474,9 +474,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         delete paymentInterval;
 
         delete dateCalled;
-        delete datePaid;
         delete dateFunded;
         delete dateImpaired;
+        delete datePaid;
 
         delete calledPrincipal;
         delete principal;
