@@ -109,12 +109,13 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         // Clear refinance commitment to prevent implications of re-acceptance of another call to `_acceptNewTerms`.
         delete refinanceCommitment;
 
-        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
-
         for (uint256 i_; i_ < calls_.length; ++i_) {
             ( bool success_, ) = refinancer_.delegatecall(calls_[i_]);
             require(success_, "ML:ANT:FAILED");
         }
+
+        // TODO: Emit this before the refinance calls in order to adhere to the CEI pattern.
+        emit NewTermsAccepted(refinanceCommitment_, refinancer_, deadline_, calls_);
 
         address fundsAsset_   = fundsAsset;
         uint256 newPrincipal_ = principal;
