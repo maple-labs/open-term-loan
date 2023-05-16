@@ -12,7 +12,7 @@ build:
 	@FOUNDRY_PROFILE=production forge build
 
 release:
-	@release.sh
+	@scripts/release.sh
 
 test:
 	forge test

@@ -1,5 +1,5 @@
 name: open-term-loan
-version: 1.0.0-alpha.2
+version: 1.0.0
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
