@@ -85,6 +85,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         emit BorrowerAccepted(borrower = msg.sender);
     }
 
+    function acceptLoanTerms() external override whenNotPaused onlyBorrower {
+        require(!loanTermsAccepted, "ML:ALT:ALREADY_ACCEPTED");
+
+        loanTermsAccepted = true;
+
+        emit LoanTermsAccepted();
+    }
+
     function acceptNewTerms(address refinancer_, uint256 deadline_, bytes[] calldata calls_)
         external override whenNotPaused onlyBorrower returns (bytes32 refinanceCommitment_)
     {
@@ -267,8 +275,9 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
     }
 
     function fund() external override whenNotPaused onlyLender returns (uint256 fundsLent_, uint40 paymentDueDate_, uint40 defaultDate_) {
-        require(dateFunded == 0, "ML:F:LOAN_ACTIVE");
-        require(principal != 0,  "ML:F:LOAN_CLOSED");
+        require(loanTermsAccepted, "ML:F:TERMS_NOT_ACCEPTED");
+        require(dateFunded == 0,   "ML:F:LOAN_ACTIVE");
+        require(principal != 0,    "ML:F:LOAN_CLOSED");
 
         dateFunded = _uint40(block.timestamp);
 

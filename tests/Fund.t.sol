@@ -22,6 +22,7 @@ contract FundTests is Test, Utils {
 
         loan.__setFactory(address(factory));
         loan.__setLender(lender);
+        loan.__setLoanTermsAccepted(true);
     }
 
     function test_fund_paused() external {
@@ -33,6 +34,14 @@ contract FundTests is Test, Utils {
 
     function test_fund_notLender() external {
         vm.expectRevert("ML:NOT_LENDER");
+        loan.fund();
+    }
+
+    function test_fund_termsNotAccepted() external {
+        loan.__setLoanTermsAccepted(false);
+
+        vm.prank(lender);
+        vm.expectRevert("ML:F:TERMS_NOT_ACCEPTED");
         loan.fund();
     }
 

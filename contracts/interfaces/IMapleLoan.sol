@@ -24,6 +24,11 @@ interface IMapleLoan is IMapleProxied, IMapleLoanEvents, IMapleLoanStorage {
     function acceptLender() external;
 
     /**
+     *  @dev Accept the loan terms, must be called by the borrower.
+     */
+    function acceptLoanTerms() external;
+
+    /**
      *  @dev    Accept the proposed terms and trigger refinance execution.
      *  @param  refinancer_          The address of the refinancer contract.
      *  @param  deadline_            The deadline for accepting the new terms.

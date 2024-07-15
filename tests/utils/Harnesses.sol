@@ -80,6 +80,10 @@ contract MapleLoanHarness is MapleLoan {
         lender = lender_;
     }
 
+    function __setLoanTermsAccepted(bool loanTermsAccepted_) external {
+        loanTermsAccepted = loanTermsAccepted_;
+    }
+
     function __setNoticePeriod(uint256 noticePeriod_) external {
         noticePeriod = uint32(noticePeriod_);
     }
