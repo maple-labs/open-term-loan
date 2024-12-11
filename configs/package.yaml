@@ -8,6 +8,8 @@ packages:
     contractName: MapleLoanFactory
   - path: contracts/MapleLoanInitializer.sol
     contractName: MapleLoanInitializer
+  - path: contracts/MapleLoanStorage.sol
+    contractName: MapleLoanStorage
   - path: contracts/MapleRefinancer.sol
     contractName: MapleRefinancer
 customDescription: Maple Open Term Loan Artifacts and ABIs

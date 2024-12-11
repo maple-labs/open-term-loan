@@ -18,7 +18,7 @@ import { MapleLoanStorage } from "./MapleLoanStorage.sol";
 
 */
 
-/// @title MapleRefinancer uses storage from a MapleLoan defined by MapleLoanStorage.
+/// @title Refinancer uses storage from a MapleLoan defined by MapleLoanStorage.
 contract MapleRefinancer is IMapleRefinancer, MapleLoanStorage {
 
     function decreasePrincipal(uint256 amount_) external override {

@@ -32,6 +32,4 @@ abstract contract MapleLoanStorage is IMapleLoanStorage {
     uint64 public override lateInterestPremiumRate;  // The amount to increase the interest rate by for late payments.
     uint64 public override platformServiceFeeRate;   // The annualized platform service fee rate.
 
-    bool public override loanTermsAccepted;  // The state of the borrower's acceptance of the loan terms.
-
 }
