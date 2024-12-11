@@ -74,6 +74,11 @@ interface IMapleLoanStorage {
     function lender() external view returns (address lender_);
 
     /**
+     *  @dev Whether the loan terms have been accepted by the borrower.
+     */
+    function loanTermsAccepted() external view returns (bool loanTermsAccepted_);
+
+    /**
      *  @dev The amount of time the borrower has, after the loan is called, to make a payment, paying back the called principal.
      */
     function noticePeriod() external view returns (uint32 noticePeriod_);

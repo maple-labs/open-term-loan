@@ -1,5 +1,5 @@
 name: open-term-loan
-version: 0.0.1
+version: 1.0.1
 source: contracts
 packages:
   - path: contracts/MapleLoan.sol
@@ -8,8 +8,6 @@ packages:
     contractName: MapleLoanFactory
   - path: contracts/MapleLoanInitializer.sol
     contractName: MapleLoanInitializer
-  - path: contracts/MapleLoanStorage.sol
-    contractName: MapleLoanStorage
   - path: contracts/MapleRefinancer.sol
     contractName: MapleRefinancer
-customDescription: Maple Loan Artifacts and ABIs
+customDescription: Maple Open Term Loan Artifacts and ABIs

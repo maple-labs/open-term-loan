@@ -1,21 +1,11 @@
-install:
-	@git submodule update --init --recursive
-
-update:
-	@forge update
-
-# Build and test
-
-profile ?=default
-
 build:
-	@FOUNDRY_PROFILE=production forge build
+	@scripts/build.sh -p production
 
 release:
 	@scripts/release.sh
 
-test:
-	forge test
+size:
+	@scripts/check-sizes.sh
 
-clean:
-	@forge clean
+test:
+	@scripts/test.sh -p default
