@@ -10,7 +10,8 @@ contract AcceptLoanTermsTests is Test {
 
     event LoanTermsAccepted();
 
-    address account = makeAddr("account");
+    address account         = makeAddr("account");
+    address borrowerActions = makeAddr("borrowerActions");
 
     MapleLoanHarness loan    = new MapleLoanHarness();
     MockFactory      factory = new MockFactory();
@@ -43,13 +44,27 @@ contract AcceptLoanTermsTests is Test {
         loan.acceptLoanTerms();
     }
 
-    function test_acceptLoanTerms_success() external {
+    function test_acceptLoanTerms_success_asBorrower() external {
         assertTrue(!loan.loanTermsAccepted());
 
         vm.expectEmit();
         emit LoanTermsAccepted();
 
         vm.prank(account);
+        loan.acceptLoanTerms();
+
+        assertTrue(loan.loanTermsAccepted());
+    }
+
+    function test_acceptLoanTerms_success_asBorrowerActions() external {
+        assertTrue(!loan.loanTermsAccepted());
+
+        globals.__setIsInstanceOf("BORROWER_ACTIONS", borrowerActions, true);
+
+        vm.expectEmit();
+        emit LoanTermsAccepted();
+
+        vm.prank(borrowerActions);
         loan.acceptLoanTerms();
 
         assertTrue(loan.loanTermsAccepted());

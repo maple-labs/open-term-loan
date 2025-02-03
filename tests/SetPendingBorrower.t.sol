@@ -10,6 +10,7 @@ contract SetPendingBorrowerTests is Test {
 
     event PendingBorrowerSet(address indexed pendingBorrower_);
 
+    address borrowerActions = makeAddr("borrowerActions");
     address currentBorrower = makeAddr("currentBorrower");
     address newBorrower     = makeAddr("newBorrower");
 
@@ -42,13 +43,26 @@ contract SetPendingBorrowerTests is Test {
         loan.setPendingBorrower(newBorrower);
     }
 
-    function test_setPendingBorrower_success() external {
+    function test_setPendingBorrower_success_asCurrentBorrower() external {
         globals.__setIsBorrower(newBorrower, true);
 
         vm.expectEmit();
         emit PendingBorrowerSet(newBorrower);
 
         vm.prank(currentBorrower);
+        loan.setPendingBorrower(newBorrower);
+
+        assertEq(loan.pendingBorrower(), newBorrower);
+    }
+
+    function test_setPendingBorrower_success_asBorrowerActions() external {
+        globals.__setIsBorrower(newBorrower, true);
+        globals.__setIsInstanceOf("BORROWER_ACTIONS", borrowerActions, true);   
+
+        vm.expectEmit();
+        emit PendingBorrowerSet(newBorrower);
+
+        vm.prank(borrowerActions);
         loan.setPendingBorrower(newBorrower);
 
         assertEq(loan.pendingBorrower(), newBorrower);
