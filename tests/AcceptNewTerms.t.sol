@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.7;
 
-import { console2, Test } from "../modules/forge-std/src/Test.sol";
+import { console2 as console, Test } from "../modules/forge-std/src/Test.sol";
 
 import { MapleRefinancer } from "../contracts/MapleRefinancer.sol";
 
@@ -21,6 +21,8 @@ contract AcceptNewTermsFailure is Test, Utils {
 
     address borrower = makeAddr("borrower");
 
+    uint256 start = block.timestamp;
+
     MapleLoanHarness loan       = new MapleLoanHarness();
     MapleRefinancer  refinancer = new MapleRefinancer();
     MockGlobals      globals    = new MockGlobals();
@@ -32,6 +34,10 @@ contract AcceptNewTermsFailure is Test, Utils {
 
         loan.__setFactory(address(factory));
         loan.__setBorrower(borrower);
+        loan.__setDateFunded(start);
+        loan.__setInterestRate(0.10e18);
+        loan.__setPaymentInterval(1_000_000);
+        loan.__setPrincipal(1_000_000e6);
     }
 
     function test_acceptNewTerms_paused() external {
@@ -96,8 +102,10 @@ contract AcceptNewTermsFailure is Test, Utils {
     function test_acceptNewTerms_transferRevert() external {
         address asset = address(new MockRevertingERC20("Asset", "A", 6));
 
-        loan.__setFundsAsset(asset);
+        // Advance time to ensure there's interest to be pulled
+        vm.warp(start + 1_000_000);
 
+        loan.__setFundsAsset(asset);
         loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, new bytes[](0))));
 
         vm.expectRevert("ML:ANT:TRANSFER_FAILED");
@@ -423,6 +431,260 @@ contract AcceptNewTerms is Test, Utils {
     function _encodeCall(bytes memory call) internal pure returns (bytes[] memory calls) {
         calls = new bytes[](1);
         calls[0] = call;
+    }
+
+}
+
+contract AcceptNewTermsPrincipalChangeTests is Test, Utils {
+
+    event NewTermsAccepted(bytes32 refinanceCommitment_, address refinancer_, uint256 deadline_, bytes[] calls_);
+
+    uint256 constant gracePeriod             = 1 days;
+    uint256 constant interestRate            = 0.10e18;
+    uint256 constant interval                = 1_000_000;
+    uint256 constant lateFeeRate             = 0.01e18;
+    uint256 constant lateInterestPremiumRate = 0.05e18;
+    uint256 constant noticePeriod            = 2 days;
+    uint256 constant principal               = 1_000_000e6;
+    uint256 constant principalDiff           = 100_000e6;
+
+    address borrower = makeAddr("borrower");
+
+    uint256 start = block.timestamp;
+
+    MapleLoanHarness loan       = new MapleLoanHarness();
+    MapleRefinancer  refinancer = new MapleRefinancer();
+    MockERC20        asset      = new MockERC20("Asset", "A", 6);
+    MockGlobals      globals    = new MockGlobals();
+    MockLender       lender     = new MockLender();
+
+    function setUp() external virtual {
+        MockFactory factory = new MockFactory();
+
+        factory.__setGlobals(address(globals));
+
+        loan.__setBorrower(borrower);
+        loan.__setFactory(address(factory));
+        loan.__setFundsAsset(address(asset));
+        loan.__setInterestRate(interestRate);
+        loan.__setLateFeeRate(lateFeeRate);
+        loan.__setLateInterestPremiumRate(lateInterestPremiumRate);
+        loan.__setLender(address(lender));
+        loan.__setPaymentInterval(interval);
+        loan.__setPrincipal(principal);
+        loan.__setDateFunded(start);
+
+        // Setting both to a date in the future to ensure value is removed without affecting due dates.
+        loan.__setDateCalled(start + 1_200_000);
+        loan.__setDateImpaired(start + 1_200_000);
+
+        vm.prank(borrower);
+        asset.approve(address(loan), type(uint256).max);
+
+        vm.prank(address(lender));
+        asset.approve(address(loan), type(uint256).max);
+    }
+
+    // NOTE: Since the exact amount is sent from the lender back to the pool, there's no asset transfer that can be asserted in the loan,
+    // as all happens in the loan manager's `claim` function.
+    function test_acceptNewTerms_payInterestWithExactPrincipalIncrease() external {
+        vm.warp(start + (interval / 2));
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      start + 1_200_000);
+        assertEq(loan.dateImpaired(),    start + 1_200_000);
+        assertEq(loan.datePaid(),        0);
+        assertEq(loan.paymentDueDate(),  start + interval);
+        assertEq(loan.principal(),       principal);
+
+        (
+            ,
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        ) = loan.getPaymentBreakdown(block.timestamp);
+
+        uint256 totalInterestAndFees = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
+
+        // Create a call that just pays the interest and fees
+        bytes[] memory calls = _encodePrincipalIncreaseCall(totalInterestAndFees);
+
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, calls)));
+
+        // Mint the lender the principal increase
+        asset.mint(address(lender), totalInterestAndFees);
+
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
+        // Set up the mock lender to expect it's `claim` to be called with these specific values.
+        lender.__expectCall();
+        lender.claim(
+            (int256(totalInterestAndFees) * -1),
+            interest_ + lateInterest_,
+            delegateServiceFee_ ,
+            platformServiceFee_,
+            uint40(block.timestamp + 1_000_000)
+        );
+
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
+        vm.prank(borrower);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      0);
+        assertEq(loan.dateImpaired(),    0);
+        assertEq(loan.datePaid(),        start + (interval / 2));
+        assertEq(loan.paymentDueDate(),  start + (interval / 2) + interval);
+        assertEq(loan.principal(),       principal + totalInterestAndFees);
+    }
+
+    function test_acceptNewTerms_payInterestWithSingleWeiFromBorrower() external {
+        vm.warp(start + (interval / 2));
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      start + 1_200_000);
+        assertEq(loan.dateImpaired(),    start + 1_200_000);
+        assertEq(loan.datePaid(),        0);
+        assertEq(loan.paymentDueDate(),  start + interval);
+        assertEq(loan.principal(),       principal);
+
+        (
+            ,
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        ) = loan.getPaymentBreakdown(block.timestamp);
+
+        uint256 totalInterestAndFees = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
+        uint256 principalIncrease = totalInterestAndFees - 1;
+
+        // Create a call that is 1 wei short of interest and fees
+        bytes[] memory calls = _encodePrincipalIncreaseCall(principalIncrease);
+
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, calls)));
+
+        // Mint the lender the principal increase
+        asset.mint(address(lender), principalIncrease);
+
+        // Mint the borrower the interest and fees
+        asset.mint(address(borrower), 1);
+
+        uint256 initialLenderBalance   = asset.balanceOf(address(lender));
+        uint256 initialBorrowerBalance = asset.balanceOf(address(borrower));
+
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
+        // Set up the mock lender to expect it's `claim` to be called with these specific values.
+        lender.__expectCall();
+        lender.claim(
+            (int256(principalIncrease) * -1),
+            interest_ + lateInterest_,
+            delegateServiceFee_ ,
+            platformServiceFee_,
+            uint40(block.timestamp + 1_000_000)
+        );
+
+        vm.expectCall(
+            address(asset), abi.encodeWithSignature("transferFrom(address,address,uint256)", address(borrower), address(lender), 1)
+        );
+
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
+        vm.prank(borrower);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
+
+        uint256 finalLenderBalance   = asset.balanceOf(address(lender));
+        uint256 finalBorrowerBalance = asset.balanceOf(address(borrower));
+
+        assertEq(finalLenderBalance,   initialLenderBalance + 1);   // Lender gets the extra wei
+        assertEq(finalBorrowerBalance, initialBorrowerBalance - 1); // Borrower pay the extra wei
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      0);
+        assertEq(loan.dateImpaired(),    0);
+        assertEq(loan.datePaid(),        start + (interval / 2));
+        assertEq(loan.paymentDueDate(),  start + (interval / 2) + interval);
+        assertEq(loan.principal(),       principal + principalIncrease);
+    }
+
+    function test_acceptNewTerms_payInterestAndIncreasePrincipalForBorrower() external {
+        vm.warp(start + (interval / 2));
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      start + 1_200_000);
+        assertEq(loan.dateImpaired(),    start + 1_200_000);
+        assertEq(loan.datePaid(),        0);
+        assertEq(loan.paymentDueDate(),  start + interval);
+        assertEq(loan.principal(),       principal);
+
+        (
+            ,
+            uint256 interest_,
+            uint256 lateInterest_,
+            uint256 delegateServiceFee_,
+            uint256 platformServiceFee_
+        ) = loan.getPaymentBreakdown(block.timestamp);
+
+        uint256 totalInterestAndFees = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
+        uint256 principalIncrease = totalInterestAndFees + 1;
+
+        // Create a call that is 1 wei short of interest and fees
+        bytes[] memory calls = _encodePrincipalIncreaseCall(principalIncrease);
+
+        loan.__setRefinanceCommitment(keccak256(abi.encode(address(refinancer), block.timestamp, calls)));
+
+        // Mint the lender the principal increase
+        asset.mint(address(lender), principalIncrease);
+
+        uint256 initialLenderBalance   = asset.balanceOf(address(lender));
+        uint256 initialBorrowerBalance = asset.balanceOf(address(borrower));
+
+        bytes32 expectedRefinanceCommitment_ = loan.__getRefinanceCommitment(address(refinancer), block.timestamp, calls);
+
+        // Set up the mock lender to expect it's `claim` to be called with these specific values.
+        lender.__expectCall();
+        lender.claim(
+            (int256(principalIncrease) * -1),
+            interest_ + lateInterest_,
+            delegateServiceFee_ ,
+            platformServiceFee_,
+            uint40(block.timestamp + 1_000_000)
+        );
+
+        vm.expectEmit();
+        emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
+
+        vm.prank(borrower);
+        bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
+
+        assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
+
+        uint256 finalLenderBalance   = asset.balanceOf(address(lender));
+        uint256 finalBorrowerBalance = asset.balanceOf(address(borrower));
+
+        assertEq(finalLenderBalance,   initialLenderBalance - 1);   // Lender gets the extra wei
+        assertEq(finalBorrowerBalance, initialBorrowerBalance + 1); // Borrower pay the extra wei
+
+        assertEq(loan.paymentInterval(), 1_000_000);
+        assertEq(loan.dateCalled(),      0);
+        assertEq(loan.dateImpaired(),    0);
+        assertEq(loan.datePaid(),        start + (interval / 2));
+        assertEq(loan.paymentDueDate(),  start + (interval / 2) + interval);
+        assertEq(loan.principal(),       principal + principalIncrease);
+    }
+
+    function _encodePrincipalIncreaseCall(uint256 amount_) internal pure returns (bytes[] memory calls) {
+        calls = new bytes[](1);
+        calls[0] = abi.encodeWithSignature("increasePrincipal(uint256)", amount_);
     }
 
 }

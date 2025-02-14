@@ -70,9 +70,9 @@ contract RejectNewTermsTests is Test, Utils {
         assertEq(loan.refinanceCommitment(), bytes32(0));
     }
 
-    function _encodeCall(bytes memory call) internal pure returns (bytes[] memory calls) {
-        calls = new bytes[](1);
-        calls[0] = call;
+    function _encodeCall(bytes memory call) internal pure returns (bytes[] memory calls_) {
+        calls_ = new bytes[](1);
+        calls_[0] = call;
     }
 
 }

@@ -128,23 +128,27 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         address fundsAsset_   = fundsAsset;
         uint256 newPrincipal_ = principal;
 
-        int256 netPrincipalToReturnToLender_ = _int256(previousPrincipal_) - _int256(newPrincipal_);
-
         uint256 interestAndFees_ = interest_ + lateInterest_ + delegateServiceFee_ + platformServiceFee_;
+
+        int256 netPrincipalToReturnToLender_                = _int256(previousPrincipal_) - _int256(newPrincipal_);
+        int256 netPrincipalInterestAndFeesToReturnToLender_ = netPrincipalToReturnToLender_ + _int256(interestAndFees_);
 
         address borrower_ = borrower;
 
         ILenderLike lender_ = ILenderLike(lender);
 
-        require(
-            ERC20Helper.transferFrom(
-                fundsAsset_,
-                borrower_,
-                address(lender_),
-                (netPrincipalToReturnToLender_ > 0 ? _uint256(netPrincipalToReturnToLender_) : 0) + interestAndFees_
-            ),
-            "ML:ANT:TRANSFER_FAILED"
-        );
+        // If there's funds to return, pull from the borrower.
+        if (netPrincipalInterestAndFeesToReturnToLender_ > 0) {
+            require(
+                ERC20Helper.transferFrom(
+                    fundsAsset_,
+                    borrower_,
+                    address(lender_),
+                    _uint256(netPrincipalInterestAndFeesToReturnToLender_)
+                ),
+                "ML:ANT:TRANSFER_FAILED"
+            );
+        }
 
         platformServiceFeeRate = uint64(IGlobalsLike(globals()).platformServiceFeeRate(lender_.poolManager()));
 
@@ -169,9 +173,14 @@ contract MapleLoan is IMapleLoan, MapleProxiedInternals, MapleLoanStorage {
         );
 
         // Principal has increased in the Loan, so Loan pulls funds from Lender.
-        if (netPrincipalToReturnToLender_ < 0) {
+        if (netPrincipalInterestAndFeesToReturnToLender_ < 0) {
             require(
-                ERC20Helper.transferFrom(fundsAsset_, address(lender_), borrower_, _uint256(netPrincipalToReturnToLender_ * -1)),
+                ERC20Helper.transferFrom(
+                    fundsAsset_,
+                    address(lender_), 
+                    borrower_, 
+                    _uint256(netPrincipalInterestAndFeesToReturnToLender_ * -1)
+                ),
                 "ML:ANT:TRANSFER_FAILED"
             );
         }
