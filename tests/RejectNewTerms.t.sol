@@ -9,9 +9,10 @@ import { Utils }                    from "./utils/Utils.sol";
 
 contract RejectNewTermsTests is Test, Utils {
 
-    address borrower   = makeAddr("borrower");
-    address lender     = makeAddr("lender");
-    address refinancer = makeAddr("refinancer");
+    address borrowerActions = makeAddr("borrowerActions");
+    address borrower        = makeAddr("borrower");
+    address lender          = makeAddr("lender");
+    address refinancer      = makeAddr("refinancer");
 
     bytes[] calls = _encodeCall(abi.encodeWithSignature("setPaymentInterval(uint32)", 2_000_000));
 
@@ -48,6 +49,15 @@ contract RejectNewTermsTests is Test, Utils {
 
     function test_rejectNewTerms_success_asBorrower() external {
         vm.prank(borrower);
+        loan.rejectNewTerms(refinancer, block.timestamp, calls);
+
+        assertEq(loan.refinanceCommitment(), bytes32(0));
+    }
+
+    function test_rejectNewTerms_success_asBorrowerActions() external {
+        globals.__setIsInstanceOf("BORROWER_ACTIONS", borrowerActions, true);
+
+        vm.prank(borrowerActions);
         loan.rejectNewTerms(refinancer, block.timestamp, calls);
 
         assertEq(loan.refinanceCommitment(), bytes32(0));

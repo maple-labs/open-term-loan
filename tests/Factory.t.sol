@@ -66,7 +66,7 @@ contract FactoryTests is Test {
         );
 
         vm.expectRevert("LF:CI:CANNOT_DEPLOY");
-        address loan = factory.createInstance(arguments, salt_);
+        factory.createInstance(arguments, salt_);
     }
 
     function test_createInstance(bytes32 salt_) external {

@@ -122,7 +122,8 @@ contract AcceptNewTerms is Test, Utils {
     uint256 constant principal               = 1_000_000e6;
     uint256 constant principalDiff           = 100_000e6;
 
-    address borrower = makeAddr("borrower");
+    address borrower        = makeAddr("borrower");
+    address borrowerActions = makeAddr("borrowerActions");
 
     uint256 start = block.timestamp;
 
@@ -157,6 +158,8 @@ contract AcceptNewTerms is Test, Utils {
 
         vm.prank(address(lender));
         asset.approve(address(loan), type(uint256).max);
+
+        globals.__setIsInstanceOf("BORROWER_ACTIONS", borrowerActions, true);
     }
 
     function test_acceptNewTerms_earlyRefinance() external {
@@ -389,7 +392,7 @@ contract AcceptNewTerms is Test, Utils {
         vm.expectEmit();
         emit NewTermsAccepted(expectedRefinanceCommitment_, address(refinancer), block.timestamp, calls);
 
-        vm.prank(borrower);
+        vm.prank(borrowerActions);
         bytes32 refinanceCommitment_ = loan.acceptNewTerms(address(refinancer), block.timestamp, calls);
 
         assertEq(refinanceCommitment_, expectedRefinanceCommitment_);
