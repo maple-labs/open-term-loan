@@ -70,7 +70,7 @@ forge install
 | Spearbit Auditors via Cantina | [`2023-06-05 - Cantina Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11667848/cantina-maple.pdf) |
 | Three Sigma | [`2023-04-10 - Three Sigma Report`](https://docs.google.com/viewer?url=https://github.com/maple-labs/maple-v2-audits/files/11663546/maple-v2-audit_three-sigma_2023.pdf) |
 
-### August 2024 Release 
+### August 2024 Release
 | Auditor | Report Link |
 |---|---|
 | 0xMacro | [`2024-08-14 - 0xMacro Report`](https://github.com/maple-labs/syrup-utils/blob/main/audits/0xMacro-Maple-Finance-Aug-2024.pdf) |
@@ -87,5 +87,5 @@ For all information related to the ongoing bug bounty for these contracts run by
 ---
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/44272939/196706799-fe96d294-f700-41e7-a65f-2d754d0a6eac.gif" height="100" />
+  <img src="https://github.com/maple-labs/maple-metadata/blob/796e313f3b2fd4960929910cd09a9716688a4410/assets/maplelogo.png" height="100" />
 </p>
